@@ -528,12 +528,20 @@ async function renderAdmin(body){
   const cfg=await getConfig(adminStore);
   hideOverlay();
 
-  const sel=`<select class="admin-store-sel" onchange="adminStore=this.value;renderHomeBody()">
-    ${STORES.map(s=>`<option value="${s.code}"${s.code===adminStore?' selected':''}>${s.name} (${s.code})</option>`).join('')}
-  </select>`;
+  const curStoreName = STORES.find(s=>s.code===adminStore).name;
+  const sel=`
+  <div style="margin-bottom:14px">
+    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;letter-spacing:.5px;text-transform:uppercase">매장 선택</div>
+    <select class="admin-store-sel" onchange="setAdminStore(this.value)">
+      ${STORES.map(s=>`<option value="${s.code}"${s.code===adminStore?' selected':''}>${s.name} (${s.code})</option>`).join('')}
+    </select>
+    <div style="font-size:12px;color:var(--accent2);font-weight:600;padding:8px 12px;background:var(--inp-bg);border-radius:8px;border:1px solid var(--border)">
+      📋 현재 편집 중: <strong>${curStoreName}</strong> (${adminStore})
+    </div>
+  </div>`;
 
   // ── 체크리스트 섹션별 (펼치기/접기 + 드래그) ──
-  let clH='<div class="adm-sec"><div class="adm-sec-title">체크리스트 항목 관리</div>';
+  let clH='<div class="adm-sec"><div class="adm-sec-title">'+curStoreName+' 체크리스트 항목 관리</div>';
   for(const[sec,items]of Object.entries(cfg.checklist)){
     const eid=sec.replace(/[^\w가-힣]/g,'_');
     const itemsHtml=items.map((it,i)=>`
@@ -593,7 +601,17 @@ function toggleAdmCollapse(hdr){
 }
 
 // ── 직원 관리 (전체 매장) ──
-let staffViewStore = STORES[0].code; // 직원탭 선택 매장
+let staffViewStore = 'ALL'; // 직원탭 선택 매장
+
+// 전역 setter (인라인 onchange에서 호출)
+window.setStaffViewStore = function(val){
+  staffViewStore = val;
+  renderStaffAll(document.getElementById('home-body'));
+};
+window.setAdminStore = function(val){
+  adminStore = val;
+  renderHomeBody();
+};
 
 async function renderStaffAll(body){
   showOverlay('직원 목록 불러오는 중...');
@@ -606,7 +624,7 @@ async function renderStaffAll(body){
   const storeSel=`<div class="rpt-filter" style="margin-bottom:12px">
     <div class="rpt-filter-row" style="flex-wrap:nowrap">
       <label style="white-space:nowrap">매장 선택</label>
-      <select id="staff-store-sel" onchange="staffViewStore=this.value;renderStaffAll(document.getElementById('home-body'))" style="flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+      <select id="staff-store-sel" onchange="setStaffViewStore(this.value)" style="flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
         <option value="ALL">전체 매장 보기</option>
         ${STORES.map(s=>`<option value="${s.code}"${s.code===staffViewStore?' selected':''}>${s.name} (${s.code})</option>`).join('')}
       </select>
@@ -646,9 +664,6 @@ async function renderStaffAll(body){
     </div>`;
   }
   body.innerHTML=html;
-  // 선택값 복원
-  const sel=document.getElementById('staff-store-sel');
-  if(sel) sel.value=staffViewStore;
 }
 
 async function admDelStaff(storeCode,idx){
@@ -1132,7 +1147,7 @@ window.setSt=setSt;window.setStaffF=setStaffF;
 window.toggleFac=toggleFac;window.setFac=setFac;
 window.setRepair=setRepair;window.setMemo=setMemo;
 window.saveNow=saveNow;window.submitCurrent=submitCurrent;window.unlockCurrent=unlockCurrent;
-window.adminStore=adminStore;
+// adminStore는 setAdminStore() 통해 관리
 </script>
 </body>
 </html>
