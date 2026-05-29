@@ -8,3 +8,826 @@
 <meta name="apple-mobile-web-app-title" content="MP체크리스트">
 <meta name="theme-color" content="#1a1a2e">
 <title>MPLAYGROUND 체크리스트</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --primary:#1a1a2e;--accent:#D85A30;--accent2:#185FA5;
+  --ok:#1D9E75;--warn:#BA7517;--danger:#A32D2D;
+  --bg:#f4f4f0;--card:#fff;--text:#1a1a2e;--text2:#666;
+  --border:#e4e4e0;--inp-bg:#f8f8f5;
+  --shadow:0 2px 10px rgba(0,0,0,0.07);
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#111113;--card:#1c1c1e;--text:#f0f0f0;--text2:#8e8e93;--border:#2c2c2e;--inp-bg:#2c2c2e;--shadow:0 2px 10px rgba(0,0,0,0.3);}
+}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+#root{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+.screen{display:none;flex-direction:column;height:100%;overflow:hidden}
+.screen.active{display:flex}
+
+/* LOGIN */
+#s-login{align-items:center;justify-content:center;background:linear-gradient(160deg,#1a1a2e,#0f3460)}
+.login-box{width:100%;max-width:340px;padding:24px 20px}
+.login-logo{color:#fff;font-size:22px;font-weight:700;letter-spacing:3px;margin-bottom:4px}
+.login-sub{color:rgba(255,255,255,0.45);font-size:12px;margin-bottom:30px}
+.login-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:18px;padding:26px 22px;backdrop-filter:blur(12px)}
+.login-card h2{color:#fff;font-size:15px;font-weight:600;margin-bottom:20px}
+.fg{margin-bottom:14px}
+.fg label{display:block;color:rgba(255,255,255,0.6);font-size:12px;margin-bottom:5px}
+.fg input{width:100%;padding:11px 14px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;font-size:14px;font-family:inherit;outline:none}
+.fg input:focus{border-color:var(--accent)}
+.fg input::placeholder{color:rgba(255,255,255,0.3)}
+.btn-login{width:100%;padding:13px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px}
+.login-err{color:#ff6b6b;font-size:12px;text-align:center;margin-top:10px;display:none}
+.install-hint{margin-top:16px;color:rgba(255,255,255,0.4);font-size:11px;text-align:center;line-height:1.7;background:rgba(255,255,255,0.04);border-radius:10px;padding:12px}
+
+/* SYNC OVERLAY */
+#sync-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#sync-overlay.show{display:flex}
+.sync-spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sync-msg{color:#fff;font-size:14px}
+
+/* HEADER */
+.hdr{background:var(--primary);color:#fff;padding-top:env(safe-area-inset-top,0);flex-shrink:0}
+.hdr-inner{padding:12px 14px;display:flex;align-items:center;gap:10px}
+.hdr-back{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:4px;line-height:1}
+.hdr-title{flex:1}
+.hdr-title .t1{font-size:16px;font-weight:700}
+.hdr-title .t2{font-size:11px;color:rgba(255,255,255,0.5)}
+.hdr-btn{background:rgba(255,255,255,0.12);border:none;color:#fff;border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:inherit}
+.sync-badge{font-size:11px;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);white-space:nowrap}
+.sync-badge.saving{background:rgba(255,200,0,0.25);color:#ffe066}
+.sync-badge.saved{background:rgba(46,204,113,0.25);color:#7effc0}
+.sync-badge.err{background:rgba(231,76,60,0.3);color:#ff8b8b}
+
+/* HOME */
+#s-home{background:var(--bg)}
+.home-hdr{background:var(--primary);padding-top:env(safe-area-inset-top,0);flex-shrink:0}
+.home-hdr-inner{padding:14px 14px 0}
+.home-logo{color:#fff;font-size:18px;font-weight:700;letter-spacing:1px}
+.home-hdr-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.home-tabs{display:flex;gap:5px;padding:0 14px 12px;overflow-x:auto}
+.home-tabs::-webkit-scrollbar{display:none}
+.htab{padding:7px 13px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.htab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.home-body{flex:1;overflow-y:auto;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0))}
+
+/* STORE GRID */
+.store-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.store-tile{background:var(--card);border-radius:14px;padding:14px 12px;box-shadow:var(--shadow);cursor:pointer;position:relative;overflow:hidden;border:1px solid var(--border);transition:opacity .15s}
+.store-tile:active{opacity:0.7}
+.tile-type{font-size:10px;color:var(--text2);margin-bottom:3px}
+.tile-name{font-size:14px;font-weight:700;margin-bottom:1px}
+.tile-code{font-size:11px;color:var(--text2)}
+.tile-rate{position:absolute;top:10px;right:10px;font-size:13px;font-weight:700;color:var(--accent)}
+.tile-sub{position:absolute;bottom:8px;right:8px;font-size:10px;color:var(--ok);font-weight:600}
+
+/* DATE BAR */
+.date-bar{background:var(--card);padding:9px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.date-bar label{font-size:12px;color:var(--text2)}
+.date-bar input[type=date]{border:1px solid var(--border);border-radius:9px;padding:6px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none;flex:1}
+.prog-pill{background:var(--primary);color:#fff;border-radius:20px;padding:4px 11px;font-size:12px;font-weight:700;white-space:nowrap}
+
+/* TAB BAR */
+.tab-bar{background:var(--card);display:flex;overflow-x:auto;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab-bar::-webkit-scrollbar{display:none}
+.tb{flex:0 0 auto;padding:11px 14px;border:none;background:none;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tb.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:12px 12px 90px;-webkit-overflow-scrolling:touch}
+
+/* SEC CARD */
+.sec-card{background:var(--card);border-radius:14px;margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border)}
+.sec-hdr{padding:12px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--primary)}
+.sec-title{flex:1;font-size:13px;font-weight:600;color:#fff}
+.sec-cnt{font-size:11px;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.1);border-radius:10px;padding:2px 8px}
+.sec-arr{font-size:11px;color:rgba(255,255,255,0.5);transition:transform .2s}
+.sec-arr.open{transform:rotate(180deg)}
+.sec-body{display:none}
+.sec-body.open{display:block}
+
+/* CHECK ITEM */
+.ci{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px}
+.ci:last-child{border-bottom:none}
+.ci-num{font-size:11px;color:var(--text2);min-width:16px;padding-top:2px}
+.ci-info{flex:1}
+.ci-area{font-size:10px;color:var(--text2);margin-bottom:1px}
+.ci-name{font-size:13px;line-height:1.4}
+.ci-controls{display:flex;flex-direction:column;gap:5px;align-items:flex-end;min-width:94px}
+.status-btns{display:flex;gap:3px}
+.sbtn{border:1px solid var(--border);background:var(--inp-bg);border-radius:7px;padding:5px 7px;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit;color:var(--text2)}
+.sbtn.done{background:#d4edda;border-color:#28a745;color:#155724}
+.sbtn.fail{background:#f8d7da;border-color:#dc3545;color:#721c24}
+.sbtn.na{background:var(--border);color:var(--text2)}
+.staff-sel{border:1px solid var(--border);border-radius:7px;padding:4px 5px;font-size:11px;width:94px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none}
+
+/* FAC */
+.fac-item{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start}
+.fac-item:last-child{border-bottom:none}
+.fac-main{flex:1}
+.fac-area{font-size:10px;color:var(--text2)}
+.fac-name{font-size:13px;margin:2px 0 5px}
+.fac-inp{width:100%;border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:12px;background:var(--inp-bg);color:var(--text);font-family:inherit;outline:none;margin-bottom:4px}
+.fac-done-btn{border:1px solid var(--border);background:var(--inp-bg);border-radius:7px;padding:6px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--text2);white-space:nowrap;min-width:52px;text-align:center}
+.fac-done-btn.done{background:#d4edda;border-color:#28a745;color:#155724}
+
+/* REPAIR */
+.rr{padding:11px 14px;border-bottom:1px solid var(--border)}
+.rr:last-child{border-bottom:none}
+.rr-num{font-size:11px;color:var(--text2);margin-bottom:5px}
+.rr-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.r-inp,.r-sel,.r-ta{border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:12px;background:var(--inp-bg);color:var(--text);font-family:inherit;outline:none;width:100%}
+.r-ta{resize:none;height:46px;grid-column:1/-1}
+
+/* MEMO */
+.memo-card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.memo-card h3{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--primary)}
+@media(prefers-color-scheme:dark){.memo-card h3{color:#f0f0f0}}
+.memo-ta{width:100%;border:1px solid var(--border);border-radius:7px;padding:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--inp-bg);outline:none;resize:none}
+
+/* SUBMIT BAR */
+.submit-bar{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--border);padding:10px 14px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0));display:flex;gap:8px;box-shadow:0 -3px 15px rgba(0,0,0,0.06)}
+.btn-save{padding:12px 16px;background:none;border:1px solid var(--border);border-radius:11px;color:var(--text2);font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn-submit{flex:1;padding:12px;background:var(--accent);border:none;border-radius:11px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+
+/* ADMIN */
+.admin-store-sel{width:100%;border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none;margin-bottom:14px}
+.adm-sec{margin-bottom:16px}
+.adm-sec-title{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;letter-spacing:.5px;text-transform:uppercase}
+.adm-card{background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:8px}
+.adm-item{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.adm-item:last-child{border-bottom:none}
+.adm-item-text{flex:1;font-size:13px}
+.btn-del{background:#fff0f0;border:1px solid #fcc;color:var(--danger);border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer;font-family:inherit}
+@media(prefers-color-scheme:dark){.btn-del{background:#3a1515;border-color:#5a2020}}
+.add-row{padding:10px 12px;display:flex;gap:6px;background:var(--inp-bg);border-top:1px solid var(--border)}
+.add-row input,.add-row select{flex:1;border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--card);color:var(--text);outline:none}
+.btn-add{background:var(--accent2);border:none;color:#fff;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
+
+/* REPORT */
+.rpt-filter{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.rpt-filter-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rpt-filter label{font-size:12px;color:var(--text2)}
+.rpt-filter input[type=date],.rpt-filter select{border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none;flex:1;min-width:110px}
+.rpt-card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:8px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.rpt-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.rpt-store{font-size:14px;font-weight:700}
+.rpt-rate{font-size:20px;font-weight:700}
+.rpt-bar-wrap{background:var(--inp-bg);border-radius:10px;height:7px;overflow:hidden;margin-bottom:6px}
+.rpt-bar{height:100%;border-radius:10px;transition:width .4s}
+.rpt-meta{font-size:11px;color:var(--text2);display:flex;gap:10px}
+.badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
+.badge-ok{background:#d4edda;color:#155724}
+.badge-warn{background:#fff3cd;color:#856404}
+.badge-no{background:var(--border);color:var(--text2)}
+.summary-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.sum-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+.sum-val{font-size:24px;font-weight:700;margin-bottom:2px}
+.sum-lbl{font-size:11px;color:var(--text2)}
+.empty-msg{text-align:center;padding:30px 0;color:var(--text2);font-size:13px}
+
+/* TOAST */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .25s;white-space:nowrap;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="root">
+
+<!-- LOGIN -->
+<div class="screen active" id="s-login">
+  <div class="login-box">
+    <div class="login-logo">MPLAYGROUND</div>
+    <div class="login-sub">매장 업무 체크리스트</div>
+    <div class="login-card">
+      <h2>로그인</h2>
+      <div class="fg"><label>아이디</label><input type="text" id="inp-id" placeholder="매장코드 또는 admin" autocomplete="off" inputmode="text"></div>
+      <div class="fg"><label>비밀번호</label><input type="password" id="inp-pw" placeholder="비밀번호"></div>
+      <button class="btn-login" onclick="doLogin()">로그인</button>
+      <div class="login-err" id="login-err">아이디 또는 비밀번호가 올바르지 않습니다.</div>
+    </div>
+    <div class="install-hint">
+      📱 홈화면에 추가하면 앱처럼 사용 가능해요<br>
+      iPhone: 공유버튼(□↑) → 홈 화면에 추가<br>
+      Android: 메뉴(⋮) → 홈 화면에 추가
+    </div>
+  </div>
+</div>
+
+<!-- HOME (admin) -->
+<div class="screen" id="s-home">
+  <div class="home-hdr">
+    <div class="home-hdr-inner">
+      <div class="home-hdr-row">
+        <div class="home-logo">MPLAYGROUND</div>
+        <button class="hdr-btn" onclick="doLogout()">로그아웃</button>
+      </div>
+    </div>
+    <div class="home-tabs">
+      <button class="htab active" id="ht-stores" onclick="switchHTab('stores')">매장 현황</button>
+      <button class="htab" id="ht-admin" onclick="switchHTab('admin')">관리 설정</button>
+      <button class="htab" id="ht-report" onclick="switchHTab('report')">이행률 보고</button>
+    </div>
+  </div>
+  <div class="home-body" id="home-body"></div>
+</div>
+
+<!-- APP (checklist) -->
+<div class="screen" id="s-app">
+  <div class="hdr">
+    <div class="hdr-inner">
+      <button class="hdr-back" id="btn-back" onclick="goBack()">←</button>
+      <div class="hdr-title">
+        <div class="t1" id="hdr-name"></div>
+        <div class="t2" id="hdr-code"></div>
+      </div>
+      <span class="sync-badge saved" id="sync-badge">저장됨</span>
+      <button class="hdr-btn" onclick="doLogout()">로그아웃</button>
+    </div>
+  </div>
+  <div class="date-bar">
+    <label>날짜</label>
+    <input type="date" id="cur-date" onchange="onDateChange()">
+    <div class="prog-pill" id="prog-pill">0%</div>
+  </div>
+  <div class="tab-bar">
+    <button class="tb active" onclick="switchTab(0)">📋 체크시트</button>
+    <button class="tb" onclick="switchTab(1)">🔧 시설점검</button>
+    <button class="tb" onclick="switchTab(2)">📩 보수요청</button>
+    <button class="tb" onclick="switchTab(3)">📝 메모</button>
+  </div>
+  <div class="content" id="app-content"></div>
+  <div class="submit-bar">
+    <button class="btn-save" onclick="saveNow()">💾 저장</button>
+    <button class="btn-submit" id="btn-submit" onclick="submitDay()">✅ 오늘 업무 제출</button>
+  </div>
+</div>
+
+</div>
+
+<!-- Sync overlay -->
+<div id="sync-overlay">
+  <div class="sync-spinner"></div>
+  <div class="sync-msg" id="sync-msg">데이터 불러오는 중...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDLU5U2F20yFzcVpeZOvfz9Z35vV2oZw0o",
+  authDomain: "mplayground-checklist.firebaseapp.com",
+  databaseURL: "https://mplayground-checklist-default-rtdb.firebaseio.com",
+  projectId: "mplayground-checklist",
+  storageBucket: "mplayground-checklist.firebasestorage.app",
+  messagingSenderId: "1013958637909",
+  appId: "1:1013958637909:web:d5d86cc2624bdc73bc17dc"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ── 데이터 상수 ──
+const STORES=[
+  {code:'M0001',name:'홍대본점',type:'직영점'},{code:'M0002',name:'건대점',type:'직영점'},
+  {code:'M0003',name:'수원점',type:'백화점'},{code:'M0004',name:'안산점',type:'직영점'},
+  {code:'M0005',name:'고양점',type:'백화점'},{code:'M0006',name:'홍대3호점',type:'직영점'},
+  {code:'M0007',name:'안성점',type:'백화점'},{code:'M0008',name:'연세1호점',type:'직영점'},
+  {code:'M0009',name:'광주2호점',type:'직영점'},{code:'M0010',name:'광주3호점',type:'직영점'},
+  {code:'M0011',name:'연세2호점',type:'직영점'},{code:'M0012',name:'명동1호점',type:'직영점'},
+  {code:'M0014',name:'서현점',type:'직영점'},{code:'M0015',name:'천안점',type:'백화점'},
+  {code:'M0016',name:'명동2호점',type:'직영점'},{code:'M0017',name:'성수1호점',type:'직영점'},
+];
+const ACCTS={admin:'admin1234'};
+STORES.forEach(s=>ACCTS[s.code]='1234');
+
+const DEF_CL={
+  '기본 점검':[
+    {a:'매장',n:'입구 개폐 여부 / 에어커튼'},{a:'매장',n:'고객 동선 (집기열) 확인'},
+    {a:'매장',n:'쇼핑바구니 위치·높이(1M)'},{a:'POS',n:'POS 개설 완료'},
+    {a:'POS',n:'준비금 세팅'},{a:'POS',n:'음악·스피커·마이크'},
+    {a:'POS',n:'쇼핑백 등 부자재'},{a:'피팅룸',n:'페이스커버·방향제·구둣주걱'},
+  ],
+  '게시물 점검':[
+    {a:'게시물',n:'매장결산 리포트'},{a:'게시물',n:'판매 리포트'},
+    {a:'게시물',n:'WWS / DWS'},{a:'게시물',n:'SHOP INFO / 주간실행방침'},
+    {a:'게시물',n:'핵심지표 / 주간수치'},{a:'게시물',n:'VMD 가이드'},
+  ],
+  '상품 정리':[
+    {a:'상품',n:'상품 낙하 여부'},{a:'상품',n:'빈 헹거 없애기'},
+    {a:'상품',n:'매대 정리'},{a:'상품',n:'상품 혼재 없애기'},
+    {a:'상품',n:'조닝·집기별 상품 정리'},{a:'상품',n:'상품 스팀 처리'},
+  ],
+  '옷걸이':[
+    {a:'옷걸이',n:'집기별 방향 통일'},{a:'옷걸이',n:'집기별 2/3 수량 진열'},
+    {a:'옷걸이',n:'상품에 맞는 옷걸이 사용'},
+  ],
+  '청소':[
+    {a:'외부',n:'매장 외부·입구·주차장'},{a:'외부',n:'화장실 (체크리스트 별도)'},
+    {a:'내부',n:'내벽 먼지'},{a:'내부',n:'윈도우 or 파사드'},
+    {a:'내부',n:'바닥'},{a:'내부',n:'집기'},{a:'내부',n:'마네킹'},
+    {a:'내부',n:'피팅룸'},{a:'내부',n:'POS·카운터·음악장비'},
+    {a:'내부',n:'거울'},{a:'내부',n:'상품 먼지'},
+    {a:'후방',n:'창고'},{a:'후방',n:'사무실'},
+  ],
+  'POP':[
+    {a:'POP설치',n:'프로모션 POP'},{a:'POP설치',n:'번외·조견표 POP'},
+    {a:'POP설치',n:'특대형·대형 POP'},{a:'POP설치',n:'캐셔용 POP'},
+    {a:'POP상태',n:'POP 재단 상태'},{a:'POP상태',n:'POP 훼손 여부'},
+    {a:'POP상태',n:'POP 출력 상태'},
+  ],
+  '마네킨·디스플레이':[
+    {a:'마네킨',n:'매장 입구 기준 정위치'},{a:'마네킨',n:'집기·상품 연동'},
+    {a:'마네킨',n:'VMD 가이드 착장'},{a:'마네킨',n:'착장 상품 스팀'},
+    {a:'마네킨',n:'다양한 상품 코디'},{a:'마네킨',n:'착장 상품 재고 결품'},
+    {a:'D/P',n:'상부 연출 상태'},{a:'D/P',n:'연출 상품 재고 결품'},
+    {a:'D/P',n:'샘플러 전 사이즈·사이즈링'},
+  ],
+  '창고·시설':[
+    {a:'창고',n:'부자재·집기·공박스 정리'},{a:'창고',n:'앵글·박스별 품번 기재'},
+    {a:'창고',n:'불량 상품 박스'},{a:'창고',n:'창고 도면 게시'},
+  ],
+};
+const DEF_FAC={
+  '매주 월요일 점검':[
+    {a:'집기',n:'집기 손상·흔들림·도장 벗겨짐'},{a:'조명',n:'조명 결함·색온도 불균형·트랙라이트'},
+    {a:'전기',n:'메인 스위치·차단기·배선 이상'},{a:'마감',n:'도장 손상·바닥 긁힘·타일 들뜸'},
+  ],
+  '매월 1일 점검':[
+    {a:'외부',n:'주차장 등 외부 공간 파손'},{a:'안전',n:'비상등·소화기·출입문·누수'},
+    {a:'공조',n:'필터 오염 여부 및 교체'},{a:'공조',n:'리모컨 작동'},
+    {a:'공조',n:'배수라인 확인 및 청소'},
+  ],
+  '매일 수시 점검':[
+    {a:'시설',n:'FR 커튼 및 기타 파손'},{a:'시설',n:'사다리 결함 / 안전모 배치'},
+    {a:'시설',n:'마네킨 파손·페인트 벗겨짐'},{a:'시설',n:'POP 아크릴 케이스'},
+  ],
+};
+
+// ── 상태 ──
+let curUser=null, curStore=null, curTab=0, homeTab='stores', adminStore=STORES[0].code;
+let curListener=null, saveTimer=null;
+
+// ── Firebase CRUD ──
+async function fbGet(path){
+  try{const snap=await get(ref(db,path));return snap.exists()?snap.val():null;}
+  catch(e){console.warn('fbGet err',e);return null;}
+}
+async function fbSet(path,val){
+  try{await set(ref(db,path),val);}
+  catch(e){console.warn('fbSet err',e);throw e;}
+}
+function fbListen(path,cb){
+  const r=ref(db,path);
+  onValue(r,snap=>cb(snap.exists()?snap.val():null));
+  return r;
+}
+function fbUnlisten(r){if(r)try{off(r);}catch{}}
+
+function dayPath(sc,date){return `days/${sc}/${date.replace(/-/g,'')}`;}
+function cfgPath(sc){return `configs/${sc}`;}
+function staffPath(sc){return `staff/${sc}`;}
+
+async function getData(sc,date){
+  const d=await fbGet(dayPath(sc,date));
+  return d||{checks:{},facility:{},repairs:[],memo:{},submitted:false};
+}
+async function setData(sc,date,data){await fbSet(dayPath(sc,date),data);}
+async function getConfig(sc){
+  const c=await fbGet(cfgPath(sc));
+  return c||{checklist:JSON.parse(JSON.stringify(DEF_CL))};
+}
+async function setConfig(sc,c){await fbSet(cfgPath(sc),c);}
+async function getStaff(sc){const s=await fbGet(staffPath(sc));return s?Object.values(s):[];}
+async function setStaff(sc,list){await fbSet(staffPath(sc),list.length?Object.fromEntries(list.map((n,i)=>[i,n])):null);}
+
+// ── 유틸 ──
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function showOverlay(msg){document.getElementById('sync-msg').textContent=msg;document.getElementById('sync-overlay').classList.add('show');}
+function hideOverlay(){document.getElementById('sync-overlay').classList.remove('show');}
+function setSyncB(state,msg){const el=document.getElementById('sync-badge');if(!el)return;el.className='sync-badge '+state;el.textContent=msg;}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function curDate(){return document.getElementById('cur-date').value;}
+function calcRate(cfg,data){const t=countTotal(cfg);if(!t)return 0;return Math.round(countDone(cfg,data)/t*100);}
+function countTotal(cfg){return Object.values(cfg.checklist).reduce((s,items)=>s+items.length,0);}
+function countDone(cfg,data){let d=0;for(const[sec,items]of Object.entries(cfg.checklist))items.forEach((_,i)=>{const v=(data.checks||{})[sec+':'+i];if(v==='done'||v==='na')d++;});return d;}
+function toggleSec(h){const b=h.nextElementSibling;const a=h.querySelector('.sec-arr');b.classList.toggle('open');a.classList.toggle('open',b.classList.contains('open'));}
+
+// ── 뒤로가기 처리 ──
+window.addEventListener('popstate',()=>{
+  if(curStore&&document.getElementById('s-app').classList.contains('active')){
+    goBack();
+  } else if(document.getElementById('s-home').classList.contains('active')){
+    doLogout();
+  }
+});
+
+// ── 로그인 / 로그아웃 ──
+document.getElementById('inp-pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('inp-id').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('inp-pw').focus();});
+
+function doLogin(){
+  const id=document.getElementById('inp-id').value.trim();
+  const pw=document.getElementById('inp-pw').value;
+  if(ACCTS[id]&&ACCTS[id]===pw){
+    document.getElementById('login-err').style.display='none';
+    curUser=id;
+    history.pushState({},'',location.href);
+    if(id==='admin'){curStore=null;showHome();}
+    else{curStore=STORES.find(s=>s.code===id);showApp();}
+  } else {
+    document.getElementById('login-err').style.display='block';
+  }
+}
+function doLogout(){
+  fbUnlisten(curListener);curListener=null;
+  curUser=null;curStore=null;curTab=0;
+  show('s-login');
+  document.getElementById('inp-id').value='';
+  document.getElementById('inp-pw').value='';
+}
+
+// ── HOME ──
+function showHome(){show('s-home');switchHTab('stores');}
+function switchHTab(t){
+  homeTab=t;
+  ['stores','admin','report'].forEach(x=>document.getElementById('ht-'+x).classList.toggle('active',x===t));
+  renderHomeBody();
+}
+async function renderHomeBody(){
+  const body=document.getElementById('home-body');
+  body.innerHTML='<div class="empty-msg">불러오는 중...</div>';
+  if(homeTab==='stores')await renderStores(body);
+  else if(homeTab==='admin')await renderAdmin(body);
+  else renderReport(body);
+}
+
+async function renderStores(body){
+  const today=todayStr();
+  let html=`<div style="font-size:12px;color:var(--text2);margin-bottom:10px">오늘(${today}) 매장 현황 · 실시간</div><div class="store-grid">`;
+  for(const s of STORES){
+    const data=await getData(s.code,today);
+    const cfg=await getConfig(s.code);
+    const rate=calcRate(cfg,data);
+    html+=`<div class="store-tile" onclick="enterStore('${s.code}')">
+      <div class="tile-type">${s.type}</div>
+      <div class="tile-name">${s.name}</div>
+      <div class="tile-code">${s.code}</div>
+      <div class="tile-rate">${rate}%</div>
+      ${data.submitted?'<div class="tile-sub">✓제출</div>':''}
+    </div>`;
+  }
+  body.innerHTML=html+'</div>';
+}
+
+function enterStore(code){
+  curStore=STORES.find(s=>s.code===code);
+  history.pushState({},'',location.href);
+  showApp();
+}
+
+// ── ADMIN ──
+async function renderAdmin(body){
+  showOverlay('설정 불러오는 중...');
+  const cfg=await getConfig(adminStore);
+  const staffList=await getStaff(adminStore);
+  hideOverlay();
+  const storeName=STORES.find(s=>s.code===adminStore).name;
+  const sel=`<select class="admin-store-sel" onchange="adminStore=this.value;renderHomeBody()">
+    ${STORES.map(s=>`<option value="${s.code}"${s.code===adminStore?' selected':''}>${s.name} (${s.code})</option>`).join('')}
+  </select>`;
+  const staffH=`<div class="adm-sec"><div class="adm-sec-title">직원 관리 — ${storeName}</div>
+    <div class="adm-card">
+      ${staffList.length?staffList.map((n,i)=>`<div class="adm-item"><div class="adm-item-text">${n}</div><button class="btn-del" onclick="admDelStaff(${i})">삭제</button></div>`).join('')
+        :'<div class="adm-item"><span style="font-size:13px;color:var(--text2)">등록된 직원 없음</span></div>'}
+      <div class="add-row"><input type="text" id="new-staff" placeholder="직원 이름"><button class="btn-add" onclick="admAddStaff()">추가</button></div>
+    </div></div>`;
+  let clH='<div class="adm-sec"><div class="adm-sec-title">체크리스트 항목 관리</div>';
+  for(const[sec,items]of Object.entries(cfg.checklist)){
+    const eid=sec.replace(/[^\w가-힣]/g,'_');
+    clH+=`<div class="adm-card" style="margin-bottom:8px">
+      <div class="sec-hdr" style="cursor:default"><span class="sec-title">${sec}</span><span class="sec-cnt">${items.length}개</span></div>
+      ${items.map((it,i)=>`<div class="adm-item"><div class="adm-item-text">[${it.a}] ${it.n}</div><button class="btn-del" onclick="admDelItem('${sec}',${i})">삭제</button></div>`).join('')}
+      <div class="add-row">
+        <input type="text" id="na-${eid}" placeholder="영역" style="flex:0.8">
+        <input type="text" id="ni-${eid}" placeholder="항목명" style="flex:1.5">
+        <button class="btn-add" onclick="admAddItem('${sec}')">추가</button>
+      </div>
+    </div>`;
+  }
+  body.innerHTML=sel+staffH+clH+'</div>';
+}
+async function admDelStaff(idx){
+  showOverlay('저장 중...');
+  const list=await getStaff(adminStore);list.splice(idx,1);
+  await setStaff(adminStore,list);hideOverlay();showToast('삭제 완료');renderHomeBody();
+}
+async function admAddStaff(){
+  const name=(document.getElementById('new-staff').value||'').trim();
+  if(!name)return showToast('이름을 입력해주세요');
+  showOverlay('저장 중...');
+  const list=await getStaff(adminStore);
+  if(list.includes(name)){hideOverlay();return showToast('이미 등록된 직원입니다');}
+  list.push(name);await setStaff(adminStore,list);
+  hideOverlay();showToast(name+' 등록 완료');renderHomeBody();
+}
+async function admDelItem(sec,idx){
+  showOverlay('저장 중...');
+  const cfg=await getConfig(adminStore);
+  cfg.checklist[sec].splice(idx,1);
+  await setConfig(adminStore,cfg);hideOverlay();showToast('항목 삭제 완료');renderHomeBody();
+}
+async function admAddItem(sec){
+  const eid=sec.replace(/[^\w가-힣]/g,'_');
+  const a=(document.getElementById('na-'+eid).value||'').trim();
+  const n=(document.getElementById('ni-'+eid).value||'').trim();
+  if(!n)return showToast('항목명을 입력해주세요');
+  showOverlay('저장 중...');
+  const cfg=await getConfig(adminStore);
+  cfg.checklist[sec].push({a:a||'기타',n});
+  await setConfig(adminStore,cfg);hideOverlay();showToast('추가 완료');renderHomeBody();
+}
+
+// ── REPORT ──
+function renderReport(body){
+  body.innerHTML=`<div class="rpt-filter">
+    <div class="rpt-filter-row">
+      <label>날짜</label>
+      <input type="date" id="rpt-date" value="${todayStr()}" onchange="loadReport()">
+      <select id="rpt-store" onchange="loadReport()">
+        <option value="all">전체 매장</option>
+        ${STORES.map(s=>`<option value="${s.code}">${s.name}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+  <div id="rpt-body"><div class="empty-msg">불러오는 중...</div></div>`;
+  loadReport();
+}
+async function loadReport(){
+  const dateEl=document.getElementById('rpt-date');
+  const stEl=document.getElementById('rpt-store');
+  if(!dateEl||!stEl)return;
+  const date=dateEl.value;
+  const sf=stEl.value;
+  const body=document.getElementById('rpt-body');
+  if(!date){body.innerHTML='<div class="empty-msg">날짜를 선택해주세요</div>';return;}
+  body.innerHTML='<div class="empty-msg">불러오는 중...</div>';
+  const targets=sf==='all'?STORES:STORES.filter(s=>s.code===sf);
+  let totalDone=0,totalItems=0,subCnt=0,cards='';
+  for(const s of targets){
+    const data=await getData(s.code,date);
+    const cfg=await getConfig(s.code);
+    const total=countTotal(cfg);
+    const done=countDone(cfg,data);
+    const rate=total?Math.round(done/total*100):0;
+    totalDone+=done;totalItems+=total;
+    if(data.submitted)subCnt++;
+    const bc=rate>=80?'#1D9E75':rate>=50?'#BA7517':'#A32D2D';
+    const badge=data.submitted?'<span class="badge badge-ok">제출완료</span>':rate>0?'<span class="badge badge-warn">진행중</span>':'<span class="badge badge-no">미시작</span>';
+    cards+=`<div class="rpt-card">
+      <div class="rpt-card-top">
+        <div><div class="rpt-store">${s.name}</div><div style="font-size:11px;color:var(--text2)">${s.code} · ${s.type}</div></div>
+        <div style="text-align:right"><div class="rpt-rate" style="color:${bc}">${rate}%</div>${badge}</div>
+      </div>
+      <div class="rpt-bar-wrap"><div class="rpt-bar" style="width:${rate}%;background:${bc}"></div></div>
+      <div class="rpt-meta"><span>${done} / ${total} 완료</span><span>제출: ${data.submitted?'O':'X'}</span>${data.submittedAt?`<span>${data.submittedAt.slice(11,16)} 제출</span>`:''}</div>
+    </div>`;
+  }
+  const avg=totalItems?Math.round(totalDone/totalItems*100):0;
+  const summary=`<div class="summary-cards">
+    <div class="sum-card"><div class="sum-val" style="color:var(--accent)">${avg}%</div><div class="sum-lbl">평균 이행률</div></div>
+    <div class="sum-card"><div class="sum-val" style="color:var(--ok)">${subCnt}<span style="font-size:16px;color:var(--text2)"> / ${targets.length}</span></div><div class="sum-lbl">제출 완료 매장</div></div>
+  </div>`;
+  body.innerHTML=summary+(cards||'<div class="empty-msg">해당 날짜에 데이터가 없습니다</div>');
+}
+
+// ── APP ──
+async function showApp(){
+  show('s-app');
+  document.getElementById('hdr-name').textContent=curStore.name;
+  document.getElementById('hdr-code').textContent=curStore.code;
+  document.getElementById('btn-back').style.display=(curUser==='admin')?'block':'none';
+  document.getElementById('cur-date').value=todayStr();
+  curTab=0;updateTabBar();
+  await renderCurrentTab();
+  await updateProgress();
+}
+function goBack(){fbUnlisten(curListener);curListener=null;showHome();}
+async function onDateChange(){await renderCurrentTab();await updateProgress();}
+async function switchTab(n){curTab=n;updateTabBar();await renderCurrentTab();}
+function updateTabBar(){document.querySelectorAll('.tb').forEach((b,i)=>b.classList.toggle('active',i===curTab));}
+async function renderCurrentTab(){
+  if(curTab===0)await renderChecklist();
+  else if(curTab===1)await renderFacility();
+  else if(curTab===2)await renderRepair();
+  else await renderMemo();
+}
+
+// ── CHECKLIST ──
+async function renderChecklist(){
+  showOverlay('체크리스트 불러오는 중...');
+  const cfg=await getConfig(curStore.code);
+  const data=await getData(curStore.code,curDate());
+  const staffList=await getStaff(curStore.code);
+  hideOverlay();
+  let html='';
+  for(const[sec,items]of Object.entries(cfg.checklist)){
+    const done=items.filter((_,i)=>['done','na'].includes((data.checks||{})[sec+':'+i])).length;
+    html+=`<div class="sec-card">
+      <div class="sec-hdr" onclick="toggleSec(this)">
+        <span class="sec-title">${sec}</span>
+        <span class="sec-cnt">${done}/${items.length}</span>
+        <span class="sec-arr open">▼</span>
+      </div>
+      <div class="sec-body open">
+        ${items.map((item,i)=>{
+          const k=sec+':'+i;
+          const st=(data.checks||{})[k]||'';
+          const sf=(data.checks||{})[k+'_staff']||'';
+          const opts='<option value="">직원선택</option>'+staffList.map(n=>`<option${n===sf?' selected':''}>${n}</option>`).join('');
+          return `<div class="ci">
+            <div class="ci-num">${i+1}</div>
+            <div class="ci-info"><div class="ci-area">${item.a}</div><div class="ci-name">${item.n}</div></div>
+            <div class="ci-controls">
+              <div class="status-btns">
+                <button class="sbtn${st==='done'?' done':''}" onclick="setSt('${k}','done')">✓</button>
+                <button class="sbtn${st==='fail'?' fail':''}" onclick="setSt('${k}','fail')">✗</button>
+                <button class="sbtn${st==='na'?' na':''}" onclick="setSt('${k}','na')">-</button>
+              </div>
+              <select class="staff-sel" onchange="setStaffF('${k}',this.value)">${opts}</select>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+  document.getElementById('app-content').innerHTML=html;
+  checkSubmitBtn(data);
+}
+
+async function setSt(key,val){
+  setSyncB('saving','저장 중...');
+  const data=await getData(curStore.code,curDate());
+  data.checks=data.checks||{};
+  data.checks[key]=(data.checks[key]===val)?'':val;
+  await setData(curStore.code,curDate(),data);
+  setSyncB('saved','저장됨 ✓');
+  await renderChecklist();await updateProgress();
+}
+async function setStaffF(key,val){
+  const data=await getData(curStore.code,curDate());
+  data.checks=data.checks||{};
+  data.checks[key+'_staff']=val;
+  await setData(curStore.code,curDate(),data);
+}
+
+// ── FACILITY ──
+async function renderFacility(){
+  const data=await getData(curStore.code,curDate());
+  let html='';
+  for(const[sec,items]of Object.entries(DEF_FAC)){
+    html+=`<div class="sec-card">
+      <div class="sec-hdr" onclick="toggleSec(this)"><span class="sec-title">${sec}</span><span class="sec-arr open">▼</span></div>
+      <div class="sec-body open">
+        ${items.map((item,i)=>{
+          const k='fac_'+sec+':'+i;
+          const st=(data.facility||{})[k]||'';
+          const note=(data.facility||{})[k+'_note']||'';
+          const plan=(data.facility||{})[k+'_plan']||'';
+          return `<div class="fac-item">
+            <div class="fac-main">
+              <div class="fac-area">${item.a}</div>
+              <div class="fac-name">${item.n}</div>
+              <input class="fac-inp" placeholder="미비 내용" value="${note.replace(/"/g,'&quot;')}" onchange="setFac('${k}_note',this.value)">
+              <input class="fac-inp" placeholder="조치 계획" value="${plan.replace(/"/g,'&quot;')}" onchange="setFac('${k}_plan',this.value)" style="margin-bottom:0">
+            </div>
+            <button class="fac-done-btn${st==='done'?' done':''}" onclick="toggleFac('${k}')">${st==='done'?'완료':'점검'}</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+  document.getElementById('app-content').innerHTML=html;
+}
+async function toggleFac(key){
+  const d=await getData(curStore.code,curDate());
+  if(!d.facility)d.facility={};
+  d.facility[key]=d.facility[key]==='done'?'':'done';
+  await setData(curStore.code,curDate(),d);renderFacility();
+}
+async function setFac(key,val){
+  const d=await getData(curStore.code,curDate());
+  if(!d.facility)d.facility={};d.facility[key]=val;
+  await setData(curStore.code,curDate(),d);
+}
+
+// ── REPAIR ──
+async function renderRepair(){
+  const d=await getData(curStore.code,curDate());
+  if(!d.repairs)d.repairs=[];
+  while(d.repairs.length<15)d.repairs.push({});
+  let html=`<div class="sec-card">
+    <div class="sec-hdr" onclick="toggleSec(this)"><span class="sec-title">보수 요청서</span><span class="sec-arr open">▼</span></div>
+    <div class="sec-body open">
+    ${d.repairs.map((r,i)=>`<div class="rr">
+      <div class="rr-num">No.${i+1}</div>
+      <div class="rr-grid">
+        <input class="r-inp" placeholder="위치" value="${(r.location||'').replace(/"/g,'&quot;')}" onchange="setRepair(${i},'location',this.value)">
+        <select class="r-sel" onchange="setRepair(${i},'urgency',this.value)">
+          <option value="">긴급도</option>
+          ${['긴급','일반','예정'].map(v=>`<option${(r.urgency||'')==v?' selected':''}>${v}</option>`).join('')}
+        </select>
+        <textarea class="r-ta" placeholder="보수 내용" onchange="setRepair(${i},'content',this.value)">${r.content||''}</textarea>
+        <select class="r-sel" onchange="setRepair(${i},'dept',this.value)">
+          <option value="">담당부서</option>
+          ${['영업팀','인테리어팀','VMD팀','총무팀','마케팅팀'].map(v=>`<option${(r.dept||'')==v?' selected':''}>${v}</option>`).join('')}
+        </select>
+        <input class="r-inp" placeholder="조치 내용" value="${(r.action||'').replace(/"/g,'&quot;')}" onchange="setRepair(${i},'action',this.value)" style="grid-column:1/-1">
+      </div>
+    </div>`).join('')}
+    </div></div>`;
+  document.getElementById('app-content').innerHTML=html;
+}
+async function setRepair(idx,field,val){
+  const d=await getData(curStore.code,curDate());
+  if(!d.repairs)d.repairs=[];
+  while(d.repairs.length<=idx)d.repairs.push({});
+  d.repairs[idx][field]=val;
+  await setData(curStore.code,curDate(),d);
+}
+
+// ── MEMO ──
+async function renderMemo(){
+  const d=await getData(curStore.code,curDate());const m=d.memo||{};
+  const fields=[{k:'handover',l:'인수인계 사항'},{k:'today',l:'오늘 중점 업무'},{k:'tomorrow',l:'내일 준비사항'},{k:'etc',l:'기타 공유사항'}];
+  let html=fields.map(f=>`<div class="memo-card"><h3>${f.l}</h3><textarea class="memo-ta" rows="3" onchange="setMemo('${f.k}',this.value)">${m[f.k]||''}</textarea></div>`).join('');
+  html+=`<div class="memo-card"><h3>보충 / 입하 체크</h3>
+    ${[{k:'main',l:'메인집기'},{k:'best',l:'전일 판매베스트'},{k:'sku',l:'주요 집기 SKU'}].map(f=>`
+      <div style="margin-bottom:10px"><div style="font-size:12px;color:var(--text2);margin-bottom:4px">${f.l}</div>
+      <textarea class="memo-ta" rows="2" onchange="setMemo('${f.k}',this.value)">${m[f.k]||''}</textarea></div>`).join('')}
+  </div>`;
+  document.getElementById('app-content').innerHTML=html;
+}
+async function setMemo(key,val){
+  const d=await getData(curStore.code,curDate());
+  if(!d.memo)d.memo={};d.memo[key]=val;
+  await setData(curStore.code,curDate(),d);
+}
+
+// ── PROGRESS & SUBMIT ──
+async function updateProgress(){
+  const cfg=await getConfig(curStore.code);
+  const data=await getData(curStore.code,curDate());
+  const rate=calcRate(cfg,data);
+  document.getElementById('prog-pill').textContent=rate+'%';
+  checkSubmitBtn(data);
+}
+function checkSubmitBtn(data){
+  const btn=document.getElementById('btn-submit');if(!btn)return;
+  if(data.submitted){btn.textContent='✓ 제출완료';btn.style.background='#1D9E75';}
+  else{btn.textContent='✅ 오늘 업무 제출';btn.style.background='';}
+}
+async function saveNow(){
+  setSyncB('saving','저장 중...');
+  await new Promise(r=>setTimeout(r,200));
+  setSyncB('saved','저장됨 ✓');
+  showToast('저장되었습니다');
+}
+async function submitDay(){
+  const data=await getData(curStore.code,curDate());
+  if(data.submitted){showToast('이미 제출된 날짜입니다');return;}
+  const cfg=await getConfig(curStore.code);
+  const rate=calcRate(cfg,data);
+  if(!confirm(`${curDate()} 업무를 제출하시겠습니까?\n현재 이행률: ${rate}%`))return;
+  showOverlay('제출 중...');
+  data.submitted=true;
+  data.submittedAt=new Date().toISOString();
+  data.submittedRate=rate;
+  await setData(curStore.code,curDate(),data);
+  hideOverlay();
+  showToast('제출 완료! 이행률 '+rate+'%');
+  checkSubmitBtn(data);
+}
+
+// 전역 함수 노출
+window.doLogin=doLogin;window.doLogout=doLogout;
+window.switchHTab=switchHTab;window.enterStore=enterStore;
+window.admDelStaff=admDelStaff;window.admAddStaff=admAddStaff;
+window.admDelItem=admDelItem;window.admAddItem=admAddItem;
+window.loadReport=loadReport;
+window.goBack=goBack;window.onDateChange=onDateChange;window.switchTab=switchTab;
+window.toggleSec=toggleSec;
+window.setSt=setSt;window.setStaffF=setStaffF;
+window.toggleFac=toggleFac;window.setFac=setFac;
+window.setRepair=setRepair;window.setMemo=setMemo;
+window.saveNow=saveNow;window.submitDay=submitDay;
+window.adminStore=adminStore;
+</script>
+</body>
+</html>
