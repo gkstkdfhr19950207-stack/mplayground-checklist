@@ -251,7 +251,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     </div>
     <div class="home-tabs">
       <button class="htab active" id="ht-stores" onclick="switchHTab('stores')">매장 현황</button>
-      <button class="htab" id="ht-admin" onclick="switchHTab('admin')">관리 설정</button>
+      <button class="htab" id="ht-staff" onclick="switchHTab('staff')">직원 관리</button>
+      <button class="htab" id="ht-admin" onclick="switchHTab('admin')">체크리스트 관리</button>
       <button class="htab" id="ht-report" onclick="switchHTab('report')">이행률 보고</button>
     </div>
   </div>
@@ -482,13 +483,14 @@ function doLogout(){
 function showHome(){show('s-home');switchHTab('stores');}
 function switchHTab(t){
   homeTab=t;
-  ['stores','admin','report'].forEach(x=>document.getElementById('ht-'+x).classList.toggle('active',x===t));
+  ['stores','staff','admin','report'].forEach(x=>{const el=document.getElementById('ht-'+x);if(el)el.classList.toggle('active',x===t);});
   renderHomeBody();
 }
 async function renderHomeBody(){
   const body=document.getElementById('home-body');
   body.innerHTML='<div class="empty-msg">불러오는 중...</div>';
   if(homeTab==='stores')await renderStores(body);
+  else if(homeTab==='staff')await renderStaffAll(body);
   else if(homeTab==='admin')await renderAdmin(body);
   else renderReport(body);
 }
@@ -524,42 +526,11 @@ let dragSec=null,dragIdx=null,dragOverIdx=null;
 async function renderAdmin(body){
   showOverlay('설정 불러오는 중...');
   const cfg=await getConfig(adminStore);
-  const staffList=await getStaff(adminStore);
   hideOverlay();
-  const storeName=STORES.find(s=>s.code===adminStore).name;
 
   const sel=`<select class="admin-store-sel" onchange="adminStore=this.value;renderHomeBody()">
     ${STORES.map(s=>`<option value="${s.code}"${s.code===adminStore?' selected':''}>${s.name} (${s.code})</option>`).join('')}
   </select>`;
-
-  // ── 직원 관리 (펼치기/접기) ──
-  const staffItems=staffList.length
-    ? staffList.map((n,i)=>`
-      <div class="adm-item">
-        <div class="adm-item-info"><div class="adm-item-name">${n}</div></div>
-        <div class="adm-btns">
-          <button class="btn-edit-item" onclick="admEditStaff(${i},'${n}')">수정</button>
-          <button class="btn-del" onclick="admDelStaff(${i})">삭제</button>
-        </div>
-      </div>`).join('')
-    : '<div class="adm-item"><span style="font-size:13px;color:var(--text2)">등록된 직원 없음</span></div>';
-
-  const staffH=`<div class="adm-sec">
-    <div class="adm-card">
-      <div class="adm-collapse-hdr" onclick="toggleAdmCollapse(this)">
-        <span class="adm-collapse-title">직원 관리 — ${storeName}</span>
-        <span class="adm-collapse-cnt">${staffList.length}명</span>
-        <span class="adm-collapse-arr open">▼</span>
-      </div>
-      <div class="adm-collapse-body open">
-        ${staffItems}
-        <div class="add-row">
-          <input type="text" id="new-staff" placeholder="직원 이름">
-          <button class="btn-add" onclick="admAddStaff()">추가</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
 
   // ── 체크리스트 섹션별 (펼치기/접기 + 드래그) ──
   let clH='<div class="adm-sec"><div class="adm-sec-title">체크리스트 항목 관리</div>';
@@ -610,7 +581,7 @@ async function renderAdmin(body){
       </div>
     </div>`;
   }
-  body.innerHTML=sel+staffH+clH+'</div>';
+  body.innerHTML=sel+clH+'</div>';
 }
 
 // ── 펼치기/접기 ──
@@ -621,29 +592,91 @@ function toggleAdmCollapse(hdr){
   arr.classList.toggle('open',open);
 }
 
-// ── 직원 ──
-async function admDelStaff(idx){
+// ── 직원 관리 (전체 매장) ──
+let staffViewStore = STORES[0].code; // 직원탭 선택 매장
+
+async function renderStaffAll(body){
+  showOverlay('직원 목록 불러오는 중...');
+  // 모든 매장 직원 한번에 로드
+  const allStaff = {};
+  for(const s of STORES){ allStaff[s.code]=await getStaff(s.code); }
+  hideOverlay();
+
+  // 매장 선택 셀렉트
+  const storeSel=`<div class="rpt-filter" style="margin-bottom:12px">
+    <div class="rpt-filter-row" style="flex-wrap:nowrap">
+      <label style="white-space:nowrap">매장 선택</label>
+      <select id="staff-store-sel" onchange="staffViewStore=this.value;renderStaffAll(document.getElementById('home-body'))" style="flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+        <option value="ALL">전체 매장 보기</option>
+        ${STORES.map(s=>`<option value="${s.code}"${s.code===staffViewStore?' selected':''}>${s.name} (${s.code})</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+
+  const targetStores = staffViewStore==='ALL' ? STORES : STORES.filter(s=>s.code===staffViewStore);
+
+  let html = storeSel;
+  for(const s of targetStores){
+    const list = allStaff[s.code]||[];
+    const itemsHtml = list.length
+      ? list.map((n,i)=>`
+        <div class="adm-item">
+          <div class="adm-item-info"><div class="adm-item-name">${n}</div></div>
+          <div class="adm-btns">
+            <button class="btn-edit-item" onclick="admEditStaff('${s.code}',${i},'${n.replace(/'/g,"\\'")}')">수정</button>
+            <button class="btn-del" onclick="admDelStaff('${s.code}',${i})">삭제</button>
+          </div>
+        </div>`).join('')
+      : '<div class="adm-item"><span style="font-size:13px;color:var(--text2)">등록된 직원 없음</span></div>';
+
+    html+=`<div class="adm-card" style="margin-bottom:10px">
+      <div class="adm-collapse-hdr" onclick="toggleAdmCollapse(this)">
+        <span class="adm-collapse-title">${s.name}</span>
+        <span class="adm-collapse-cnt" style="margin-right:4px">${s.type}</span>
+        <span class="adm-collapse-cnt">${list.length}명</span>
+        <span class="adm-collapse-arr open">▼</span>
+      </div>
+      <div class="adm-collapse-body open">
+        ${itemsHtml}
+        <div class="add-row">
+          <input type="text" id="ns-${s.code}" placeholder="${s.name} 직원 이름">
+          <button class="btn-add" onclick="admAddStaff('${s.code}')">추가</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  body.innerHTML=html;
+  // 선택값 복원
+  const sel=document.getElementById('staff-store-sel');
+  if(sel) sel.value=staffViewStore;
+}
+
+async function admDelStaff(storeCode,idx){
   if(!confirm('직원을 삭제하시겠습니까?'))return;
   showOverlay('저장 중...');
-  const list=await getStaff(adminStore);list.splice(idx,1);
-  await setStaff(adminStore,list);hideOverlay();showToast('삭제 완료');renderHomeBody();
+  const list=await getStaff(storeCode);list.splice(idx,1);
+  await setStaff(storeCode,list);hideOverlay();showToast('삭제 완료');
+  await renderStaffAll(document.getElementById('home-body'));
 }
-async function admEditStaff(idx,oldName){
+async function admEditStaff(storeCode,idx,oldName){
   const newName=prompt('직원 이름 수정',oldName);
   if(!newName||newName.trim()===oldName)return;
   showOverlay('저장 중...');
-  const list=await getStaff(adminStore);
+  const list=await getStaff(storeCode);
   list[idx]=newName.trim();
-  await setStaff(adminStore,list);hideOverlay();showToast('수정 완료');renderHomeBody();
+  await setStaff(storeCode,list);hideOverlay();showToast('수정 완료');
+  await renderStaffAll(document.getElementById('home-body'));
 }
-async function admAddStaff(){
-  const name=(document.getElementById('new-staff').value||'').trim();
+async function admAddStaff(storeCode){
+  const inp=document.getElementById('ns-'+storeCode);
+  const name=(inp?inp.value:'').trim();
   if(!name)return showToast('이름을 입력해주세요');
   showOverlay('저장 중...');
-  const list=await getStaff(adminStore);
+  const list=await getStaff(storeCode);
   if(list.includes(name)){hideOverlay();return showToast('이미 등록된 직원입니다');}
-  list.push(name);await setStaff(adminStore,list);
-  hideOverlay();showToast(name+' 등록 완료');renderHomeBody();
+  list.push(name);await setStaff(storeCode,list);
+  hideOverlay();showToast(name+' 등록 완료');
+  await renderStaffAll(document.getElementById('home-body'));
 }
 
 // ── 항목 수정 ──
@@ -1085,7 +1118,7 @@ async function unlockCurrent(){
 // 전역 함수 노출
 window.doLogin=doLogin;window.doLogout=doLogout;
 window.switchHTab=switchHTab;window.enterStore=enterStore;
-window.admDelStaff=admDelStaff;window.admAddStaff=admAddStaff;window.admEditStaff=admEditStaff;
+window.admDelStaff=admDelStaff;window.admAddStaff=admAddStaff;window.admEditStaff=admEditStaff;window.renderStaffAll=renderStaffAll;
 window.admDelItem=admDelItem;window.admAddItem=admAddItem;window.admSaveEdit=admSaveEdit;
 window.showEditRow=showEditRow;window.hideEditRow=hideEditRow;
 window.toggleAdmCollapse=toggleAdmCollapse;
