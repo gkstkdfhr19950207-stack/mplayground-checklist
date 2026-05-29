@@ -215,6 +215,31 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 /* TOAST */
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .25s;white-space:nowrap;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
 .toast.show{opacity:1}
+/* 확인 모달 */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:8000;display:flex;align-items:center;justify-content:center;padding:20px}
+.confirm-box{background:var(--card);border-radius:16px;padding:24px 20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+.confirm-icon{font-size:28px;text-align:center;margin-bottom:10px}
+.confirm-title{font-size:15px;font-weight:700;text-align:center;margin-bottom:6px}
+.confirm-msg{font-size:13px;color:var(--text2);text-align:center;line-height:1.6;margin-bottom:20px;word-break:keep-all}
+.confirm-btns{display:flex;gap:8px}
+.confirm-btn-cancel{flex:1;padding:11px;border:1px solid var(--border);border-radius:10px;background:none;color:var(--text2);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+.confirm-btn-ok{flex:1;padding:11px;border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.confirm-btn-ok.danger{background:var(--danger)}
+.confirm-btn-ok.primary{background:var(--accent2)}
+/* 대분류 헤더 */
+.sec-manage-hdr{display:flex;align-items:center;gap:6px;flex:1}
+.sec-manage-btns{display:flex;gap:4px;flex-shrink:0}
+.btn-sec-edit{background:#eef4ff;border:1px solid #c0d4f8;color:var(--accent2);border-radius:7px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit}
+.btn-sec-del{background:#fff0f0;border:1px solid #fcc;color:var(--danger);border-radius:7px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit}
+@media(prefers-color-scheme:dark){.btn-sec-edit{background:#1a2535;border-color:#2a4a7f}.btn-sec-del{background:#3a1515;border-color:#5a2020}}
+.sec-edit-row{padding:10px 14px;background:#eef6ff;border-bottom:1px solid var(--border);display:none}
+@media(prefers-color-scheme:dark){.sec-edit-row{background:#182030}}
+.sec-edit-row input{width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--card);color:var(--text);outline:none;margin-bottom:6px}
+.sec-edit-row-btns{display:flex;gap:6px}
+/* 대분류 추가 */
+.add-sec-row{padding:12px 14px;background:var(--inp-bg);border:1px solid var(--border);border-radius:12px;margin-bottom:8px}
+.add-sec-row label{font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px}
+.add-sec-row input{width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--card);color:var(--text);outline:none;margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -300,6 +325,19 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- 확인 모달 -->
+<div class="confirm-overlay" id="confirm-overlay" style="display:none">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirm-icon">⚠️</div>
+    <div class="confirm-title" id="confirm-title">확인</div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-btns">
+      <button class="confirm-btn-cancel" onclick="confirmResolve(false)">취소</button>
+      <button class="confirm-btn-ok danger" id="confirm-ok" onclick="confirmResolve(true)">확인</button>
+    </div>
+  </div>
+</div>
 
 <!-- Firebase SDK -->
 <script type="module">
@@ -541,7 +579,16 @@ async function renderAdmin(body){
   </div>`;
 
   // ── 체크리스트 섹션별 (펼치기/접기 + 드래그) ──
-  let clH='<div class="adm-sec"><div class="adm-sec-title">'+curStoreName+' 체크리스트 항목 관리</div>';
+  // 대분류 추가 UI
+  const addSecHtml=`<div class="add-sec-row">
+    <label>➕ 새 대분류 추가</label>
+    <input type="text" id="new-sec-inp" placeholder="예: 고객응대, 마감점검 등">
+    <div class="sec-edit-row-btns">
+      <button class="btn-add" style="width:100%" onclick="admAddSec()">대분류 추가</button>
+    </div>
+  </div>`;
+
+  let clH='<div class="adm-sec"><div class="adm-sec-title">'+curStoreName+' 체크리스트 항목 관리</div>'+addSecHtml;
   for(const[sec,items]of Object.entries(cfg.checklist)){
     const eid=sec.replace(/[^\w가-힣]/g,'_');
     const itemsHtml=items.map((it,i)=>`
@@ -574,10 +621,23 @@ async function renderAdmin(body){
       </div>`).join('');
 
     clH+=`<div class="adm-card" style="margin-bottom:8px">
-      <div class="adm-collapse-hdr" onclick="toggleAdmCollapse(this)">
-        <span class="adm-collapse-title">${sec}</span>
-        <span class="adm-collapse-cnt">${items.length}개</span>
-        <span class="adm-collapse-arr open">▼</span>
+      <div class="adm-collapse-hdr">
+        <div class="sec-manage-hdr" onclick="toggleAdmCollapse(this.closest('.adm-collapse-hdr'))">
+          <span class="adm-collapse-title">${sec}</span>
+          <span class="adm-collapse-cnt">${items.length}개</span>
+          <span class="adm-collapse-arr open">▼</span>
+        </div>
+        <div class="sec-manage-btns">
+          <button class="btn-sec-edit" onclick="showSecEditRow('${eid}')">수정</button>
+          <button class="btn-sec-del" onclick="admDelSec('${sec}')">삭제</button>
+        </div>
+      </div>
+      <div class="sec-edit-row" id="sec-edit-row-${eid}">
+        <input type="text" id="sec-edit-inp-${eid}" value="${sec}" placeholder="대분류명">
+        <div class="sec-edit-row-btns">
+          <button class="btn-save-edit" style="flex:1" onclick="admSaveSec('${sec}')">저장</button>
+          <button class="btn-cancel-edit" onclick="hideSecEditRow('${eid}')">취소</button>
+        </div>
       </div>
       <div class="adm-collapse-body open" id="sec-body-${eid}">
         ${itemsHtml}
@@ -667,19 +727,25 @@ async function renderStaffAll(body){
 }
 
 async function admDelStaff(storeCode,idx){
-  if(!confirm('직원을 삭제하시겠습니까?'))return;
+  const list=await getStaff(storeCode);
+  const staffName=list[idx]||'이 직원';
+  const storeName=STORES.find(s=>s.code===storeCode).name;
+  const ok=await showConfirm('직원 삭제',storeName+'\n"'+staffName+'" 직원을 삭제하시겠습니까?','danger','👤');
+  if(!ok)return;
   showOverlay('저장 중...');
-  const list=await getStaff(storeCode);list.splice(idx,1);
-  await setStaff(storeCode,list);hideOverlay();showToast('삭제 완료');
+  list.splice(idx,1);
+  await setStaff(storeCode,list);hideOverlay();showToast('"'+staffName+'" 삭제 완료');
   await renderStaffAll(document.getElementById('home-body'));
 }
 async function admEditStaff(storeCode,idx,oldName){
   const newName=prompt('직원 이름 수정',oldName);
   if(!newName||newName.trim()===oldName)return;
+  const ok=await showConfirm('직원 수정','"'+oldName+'" → "'+newName.trim()+'"\n으로 수정하시겠습니까?','primary','✏️');
+  if(!ok)return;
   showOverlay('저장 중...');
   const list=await getStaff(storeCode);
   list[idx]=newName.trim();
-  await setStaff(storeCode,list);hideOverlay();showToast('수정 완료');
+  await setStaff(storeCode,list);hideOverlay();showToast('"'+newName.trim()+'" 으로 수정됐습니다');
   await renderStaffAll(document.getElementById('home-body'));
 }
 async function admAddStaff(storeCode){
@@ -710,6 +776,8 @@ async function admSaveEdit(sec,idx){
   const a=(document.getElementById('edit-area-'+eid+'-'+idx).value||'').trim();
   const n=(document.getElementById('edit-name-'+eid+'-'+idx).value||'').trim();
   if(!n)return showToast('항목명을 입력해주세요');
+  const ok=await showConfirm('항목 수정','"'+n+'"\n으로 수정하시겠습니까?','primary','✏️');
+  if(!ok)return;
   showOverlay('저장 중...');
   const cfg=await getConfig(adminStore);
   cfg.checklist[sec][idx]={a:a||'기타',n};
@@ -717,11 +785,13 @@ async function admSaveEdit(sec,idx){
   hideOverlay();showToast('수정 완료');renderHomeBody();
 }
 async function admDelItem(sec,idx){
-  if(!confirm('항목을 삭제하시겠습니까?'))return;
-  showOverlay('저장 중...');
   const cfg=await getConfig(adminStore);
+  const itemName=cfg.checklist[sec]&&cfg.checklist[sec][idx]?cfg.checklist[sec][idx].n:'이 항목';
+  const ok=await showConfirm('항목 삭제','"'+itemName+'"\n항목을 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.','danger','🗑️');
+  if(!ok)return;
+  showOverlay('저장 중...');
   cfg.checklist[sec].splice(idx,1);
-  await setConfig(adminStore,cfg);hideOverlay();showToast('항목 삭제 완료');renderHomeBody();
+  await setConfig(adminStore,cfg);hideOverlay();showToast('항목이 삭제됐습니다');renderHomeBody();
 }
 async function admAddItem(sec){
   const eid=sec.replace(/[^\w가-힣]/g,'_');
@@ -1130,12 +1200,83 @@ async function unlockCurrent(){
   updateSubmitBar(data);
 }
 
+// ── 커스텀 확인 모달 ──
+let confirmResolve = null;
+function showConfirm(title, msg, type='danger', icon='⚠️'){
+  return new Promise(resolve=>{
+    confirmResolve = resolve;
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent = msg;
+    document.getElementById('confirm-icon').textContent = icon;
+    const okBtn = document.getElementById('confirm-ok');
+    okBtn.className = 'confirm-btn-ok ' + type;
+    okBtn.textContent = type==='danger' ? '삭제' : '확인';
+    document.getElementById('confirm-overlay').style.display = 'flex';
+  });
+}
+window.confirmResolve = function(result){
+  document.getElementById('confirm-overlay').style.display = 'none';
+  if(confirmResolve){ confirmResolve(result); confirmResolve=null; }
+};
+
+// ── 대분류(섹션) 관리 ──
+function showSecEditRow(eid){
+  const row = document.getElementById('sec-edit-row-'+eid);
+  if(row) row.style.display='block';
+}
+function hideSecEditRow(eid){
+  const row = document.getElementById('sec-edit-row-'+eid);
+  if(row) row.style.display='none';
+}
+async function admSaveSec(oldSec){
+  const eid = oldSec.replace(/[^\w가-힣]/g,'_');
+  const newSec = (document.getElementById('sec-edit-inp-'+eid).value||'').trim();
+  if(!newSec) return showToast('분류명을 입력해주세요');
+  if(newSec === oldSec){ hideSecEditRow(eid); return; }
+  const ok = await showConfirm('대분류 수정', '"'+oldSec+'" → "'+newSec+'"\n으로 수정하시겠습니까?', 'primary', '✏️');
+  if(!ok) return;
+  showOverlay('저장 중...');
+  const cfg = await getConfig(adminStore);
+  const entries = Object.entries(cfg.checklist);
+  const idx = entries.findIndex(([k])=>k===oldSec);
+  if(idx===-1){ hideOverlay(); return showToast('항목을 찾을 수 없습니다'); }
+  entries[idx][0] = newSec;
+  cfg.checklist = Object.fromEntries(entries);
+  await setConfig(adminStore, cfg);
+  hideOverlay(); showToast('"'+newSec+'" 으로 수정됐습니다'); renderHomeBody();
+}
+async function admDelSec(sec){
+  const cfg = await getConfig(adminStore);
+  const cnt = (cfg.checklist[sec]||[]).length;
+  const ok = await showConfirm('대분류 삭제', '"'+sec+'" 분류와\n하위 항목 '+cnt+'개를 모두 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.', 'danger', '🗑️');
+  if(!ok) return;
+  showOverlay('삭제 중...');
+  delete cfg.checklist[sec];
+  await setConfig(adminStore, cfg);
+  hideOverlay(); showToast('"'+sec+'" 분류가 삭제됐습니다'); renderHomeBody();
+}
+async function admAddSec(){
+  const inp = document.getElementById('new-sec-inp');
+  const secName = (inp?inp.value:'').trim();
+  if(!secName) return showToast('분류명을 입력해주세요');
+  const cfg = await getConfig(adminStore);
+  if(cfg.checklist[secName]!==undefined) return showToast('이미 존재하는 분류명입니다');
+  const ok = await showConfirm('대분류 추가', '"'+secName+'" 분류를 추가하시겠습니까?', 'primary', '➕');
+  if(!ok) return;
+  showOverlay('저장 중...');
+  cfg.checklist[secName] = [];
+  await setConfig(adminStore, cfg);
+  hideOverlay(); showToast('"'+secName+'" 분류가 추가됐습니다'); renderHomeBody();
+}
+
 // 전역 함수 노출
 window.doLogin=doLogin;window.doLogout=doLogout;
 window.switchHTab=switchHTab;window.enterStore=enterStore;
 window.admDelStaff=admDelStaff;window.admAddStaff=admAddStaff;window.admEditStaff=admEditStaff;window.renderStaffAll=renderStaffAll;
 window.admDelItem=admDelItem;window.admAddItem=admAddItem;window.admSaveEdit=admSaveEdit;
 window.showEditRow=showEditRow;window.hideEditRow=hideEditRow;
+window.showSecEditRow=showSecEditRow;window.hideSecEditRow=hideSecEditRow;
+window.admSaveSec=admSaveSec;window.admDelSec=admDelSec;window.admAddSec=admAddSec;
 window.toggleAdmCollapse=toggleAdmCollapse;
 window.onDragStart=onDragStart;window.onDragOver=onDragOver;window.onDragLeave=onDragLeave;
 window.onDrop=onDrop;window.onDragEnd=onDragEnd;
