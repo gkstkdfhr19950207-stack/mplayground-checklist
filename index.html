@@ -158,11 +158,34 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .adm-sec{margin-bottom:16px}
 .adm-sec-title{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;letter-spacing:.5px;text-transform:uppercase}
 .adm-card{background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:8px}
-.adm-item{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.adm-collapse-hdr{padding:12px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--inp-bg);border-bottom:1px solid var(--border);user-select:none}
+.adm-collapse-title{flex:1;font-size:13px;font-weight:600}
+.adm-collapse-cnt{font-size:11px;color:var(--text2);background:var(--card);border-radius:10px;padding:2px 8px;border:1px solid var(--border)}
+.adm-collapse-arr{font-size:12px;color:var(--text2);transition:transform .2s;flex-shrink:0}
+.adm-collapse-arr.open{transform:rotate(180deg)}
+.adm-collapse-body{display:none}
+.adm-collapse-body.open{display:block}
+.adm-item{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;transition:background .15s}
 .adm-item:last-child{border-bottom:none}
-.adm-item-text{flex:1;font-size:13px}
-.btn-del{background:#fff0f0;border:1px solid #fcc;color:var(--danger);border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer;font-family:inherit}
-@media(prefers-color-scheme:dark){.btn-del{background:#3a1515;border-color:#5a2020}}
+.adm-item.dragging{opacity:.35;background:var(--inp-bg)}
+.adm-item.drag-over{border-top:2px solid var(--accent2);margin-top:-1px}
+.drag-handle{color:var(--text2);font-size:18px;cursor:grab;padding:2px 2px;touch-action:none;flex-shrink:0;line-height:1;opacity:.5}
+.drag-handle:active{cursor:grabbing;opacity:1}
+.adm-item-info{flex:1;min-width:0}
+.adm-item-area{font-size:10px;color:var(--text2);margin-bottom:1px}
+.adm-item-name{font-size:13px;line-height:1.4;word-break:keep-all}
+.adm-btns{display:flex;gap:3px;flex-shrink:0}
+.btn-del{background:#fff0f0;border:1px solid #fcc;color:var(--danger);border-radius:7px;padding:4px 7px;font-size:11px;cursor:pointer;font-family:inherit}
+.btn-edit-item{background:#eef4ff;border:1px solid #c0d4f8;color:var(--accent2);border-radius:7px;padding:4px 7px;font-size:11px;cursor:pointer;font-family:inherit}
+@media(prefers-color-scheme:dark){
+  .btn-del{background:#3a1515;border-color:#5a2020}
+  .btn-edit-item{background:#1a2535;border-color:#2a4a7f}
+}
+.edit-inline-row{padding:8px 12px;display:flex;gap:5px;background:#eef6ff;border-bottom:1px solid var(--border)}
+@media(prefers-color-scheme:dark){.edit-inline-row{background:#182030}}
+.edit-inline-row input{flex:1;border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12px;font-family:inherit;background:var(--card);color:var(--text);outline:none}
+.btn-save-edit{background:var(--ok);border:none;color:#fff;border-radius:7px;padding:6px 10px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn-cancel-edit{background:none;border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:6px 7px;font-size:11px;cursor:pointer;font-family:inherit}
 .add-row{padding:10px 12px;display:flex;gap:6px;background:var(--inp-bg);border-top:1px solid var(--border)}
 .add-row input,.add-row select{flex:1;border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--card);color:var(--text);outline:none}
 .btn-add{background:var(--accent2);border:none;color:#fff;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
@@ -495,40 +518,123 @@ function enterStore(code){
 }
 
 // ── ADMIN ──
+// 드래그 상태
+let dragSec=null,dragIdx=null,dragOverIdx=null;
+
 async function renderAdmin(body){
   showOverlay('설정 불러오는 중...');
   const cfg=await getConfig(adminStore);
   const staffList=await getStaff(adminStore);
   hideOverlay();
   const storeName=STORES.find(s=>s.code===adminStore).name;
+
   const sel=`<select class="admin-store-sel" onchange="adminStore=this.value;renderHomeBody()">
     ${STORES.map(s=>`<option value="${s.code}"${s.code===adminStore?' selected':''}>${s.name} (${s.code})</option>`).join('')}
   </select>`;
-  const staffH=`<div class="adm-sec"><div class="adm-sec-title">직원 관리 — ${storeName}</div>
+
+  // ── 직원 관리 (펼치기/접기) ──
+  const staffItems=staffList.length
+    ? staffList.map((n,i)=>`
+      <div class="adm-item">
+        <div class="adm-item-info"><div class="adm-item-name">${n}</div></div>
+        <div class="adm-btns">
+          <button class="btn-edit-item" onclick="admEditStaff(${i},'${n}')">수정</button>
+          <button class="btn-del" onclick="admDelStaff(${i})">삭제</button>
+        </div>
+      </div>`).join('')
+    : '<div class="adm-item"><span style="font-size:13px;color:var(--text2)">등록된 직원 없음</span></div>';
+
+  const staffH=`<div class="adm-sec">
     <div class="adm-card">
-      ${staffList.length?staffList.map((n,i)=>`<div class="adm-item"><div class="adm-item-text">${n}</div><button class="btn-del" onclick="admDelStaff(${i})">삭제</button></div>`).join('')
-        :'<div class="adm-item"><span style="font-size:13px;color:var(--text2)">등록된 직원 없음</span></div>'}
-      <div class="add-row"><input type="text" id="new-staff" placeholder="직원 이름"><button class="btn-add" onclick="admAddStaff()">추가</button></div>
-    </div></div>`;
+      <div class="adm-collapse-hdr" onclick="toggleAdmCollapse(this)">
+        <span class="adm-collapse-title">직원 관리 — ${storeName}</span>
+        <span class="adm-collapse-cnt">${staffList.length}명</span>
+        <span class="adm-collapse-arr open">▼</span>
+      </div>
+      <div class="adm-collapse-body open">
+        ${staffItems}
+        <div class="add-row">
+          <input type="text" id="new-staff" placeholder="직원 이름">
+          <button class="btn-add" onclick="admAddStaff()">추가</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── 체크리스트 섹션별 (펼치기/접기 + 드래그) ──
   let clH='<div class="adm-sec"><div class="adm-sec-title">체크리스트 항목 관리</div>';
   for(const[sec,items]of Object.entries(cfg.checklist)){
     const eid=sec.replace(/[^\w가-힣]/g,'_');
+    const itemsHtml=items.map((it,i)=>`
+      <div class="adm-item"
+        draggable="true"
+        data-sec="${sec}" data-idx="${i}"
+        ondragstart="onDragStart(event,'${sec}',${i})"
+        ondragover="onDragOver(event,${i})"
+        ondragleave="onDragLeave(event)"
+        ondrop="onDrop(event,'${sec}',${i})"
+        ondragend="onDragEnd(event)"
+        ontouchstart="onTouchStart(event,'${sec}',${i})"
+        ontouchmove="onTouchMove(event)"
+        ontouchend="onTouchEnd(event,'${sec}',${i})">
+        <span class="drag-handle" title="길게 눌러 순서 변경">⠿</span>
+        <div class="adm-item-info">
+          <div class="adm-item-area">${it.a}</div>
+          <div class="adm-item-name">${it.n}</div>
+        </div>
+        <div class="adm-btns">
+          <button class="btn-edit-item" onclick="showEditRow('${sec}',${i})">수정</button>
+          <button class="btn-del" onclick="admDelItem('${sec}',${i})">삭제</button>
+        </div>
+      </div>
+      <div class="edit-inline-row" id="edit-row-${eid}-${i}" style="display:none">
+        <input type="text" id="edit-area-${eid}-${i}" placeholder="영역" value="${it.a}" style="flex:0.8">
+        <input type="text" id="edit-name-${eid}-${i}" placeholder="항목명" value="${it.n.replace(/"/g,'&quot;')}" style="flex:1.5">
+        <button class="btn-save-edit" onclick="admSaveEdit('${sec}',${i})">저장</button>
+        <button class="btn-cancel-edit" onclick="hideEditRow('${sec}',${i})">✕</button>
+      </div>`).join('');
+
     clH+=`<div class="adm-card" style="margin-bottom:8px">
-      <div class="sec-hdr" style="cursor:default"><span class="sec-title">${sec}</span><span class="sec-cnt">${items.length}개</span></div>
-      ${items.map((it,i)=>`<div class="adm-item"><div class="adm-item-text">[${it.a}] ${it.n}</div><button class="btn-del" onclick="admDelItem('${sec}',${i})">삭제</button></div>`).join('')}
-      <div class="add-row">
-        <input type="text" id="na-${eid}" placeholder="영역" style="flex:0.8">
-        <input type="text" id="ni-${eid}" placeholder="항목명" style="flex:1.5">
-        <button class="btn-add" onclick="admAddItem('${sec}')">추가</button>
+      <div class="adm-collapse-hdr" onclick="toggleAdmCollapse(this)">
+        <span class="adm-collapse-title">${sec}</span>
+        <span class="adm-collapse-cnt">${items.length}개</span>
+        <span class="adm-collapse-arr open">▼</span>
+      </div>
+      <div class="adm-collapse-body open" id="sec-body-${eid}">
+        ${itemsHtml}
+        <div class="add-row">
+          <input type="text" id="na-${eid}" placeholder="영역" style="flex:0.8">
+          <input type="text" id="ni-${eid}" placeholder="항목명" style="flex:1.5">
+          <button class="btn-add" onclick="admAddItem('${sec}')">추가</button>
+        </div>
       </div>
     </div>`;
   }
   body.innerHTML=sel+staffH+clH+'</div>';
 }
+
+// ── 펼치기/접기 ──
+function toggleAdmCollapse(hdr){
+  const body=hdr.nextElementSibling;
+  const arr=hdr.querySelector('.adm-collapse-arr');
+  const open=body.classList.toggle('open');
+  arr.classList.toggle('open',open);
+}
+
+// ── 직원 ──
 async function admDelStaff(idx){
+  if(!confirm('직원을 삭제하시겠습니까?'))return;
   showOverlay('저장 중...');
   const list=await getStaff(adminStore);list.splice(idx,1);
   await setStaff(adminStore,list);hideOverlay();showToast('삭제 완료');renderHomeBody();
+}
+async function admEditStaff(idx,oldName){
+  const newName=prompt('직원 이름 수정',oldName);
+  if(!newName||newName.trim()===oldName)return;
+  showOverlay('저장 중...');
+  const list=await getStaff(adminStore);
+  list[idx]=newName.trim();
+  await setStaff(adminStore,list);hideOverlay();showToast('수정 완료');renderHomeBody();
 }
 async function admAddStaff(){
   const name=(document.getElementById('new-staff').value||'').trim();
@@ -539,7 +645,31 @@ async function admAddStaff(){
   list.push(name);await setStaff(adminStore,list);
   hideOverlay();showToast(name+' 등록 완료');renderHomeBody();
 }
+
+// ── 항목 수정 ──
+function showEditRow(sec,idx){
+  const eid=sec.replace(/[^\w가-힣]/g,'_');
+  const row=document.getElementById('edit-row-'+eid+'-'+idx);
+  if(row)row.style.display='flex';
+}
+function hideEditRow(sec,idx){
+  const eid=sec.replace(/[^\w가-힣]/g,'_');
+  const row=document.getElementById('edit-row-'+eid+'-'+idx);
+  if(row)row.style.display='none';
+}
+async function admSaveEdit(sec,idx){
+  const eid=sec.replace(/[^\w가-힣]/g,'_');
+  const a=(document.getElementById('edit-area-'+eid+'-'+idx).value||'').trim();
+  const n=(document.getElementById('edit-name-'+eid+'-'+idx).value||'').trim();
+  if(!n)return showToast('항목명을 입력해주세요');
+  showOverlay('저장 중...');
+  const cfg=await getConfig(adminStore);
+  cfg.checklist[sec][idx]={a:a||'기타',n};
+  await setConfig(adminStore,cfg);
+  hideOverlay();showToast('수정 완료');renderHomeBody();
+}
 async function admDelItem(sec,idx){
+  if(!confirm('항목을 삭제하시겠습니까?'))return;
   showOverlay('저장 중...');
   const cfg=await getConfig(adminStore);
   cfg.checklist[sec].splice(idx,1);
@@ -554,6 +684,81 @@ async function admAddItem(sec){
   const cfg=await getConfig(adminStore);
   cfg.checklist[sec].push({a:a||'기타',n});
   await setConfig(adminStore,cfg);hideOverlay();showToast('추가 완료');renderHomeBody();
+}
+
+// ── 드래그앤드롭 (마우스) ──
+function onDragStart(e,sec,idx){
+  dragSec=sec;dragIdx=idx;
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>e.target.classList.add('dragging'),0);
+}
+function onDragOver(e,idx){
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  dragOverIdx=idx;
+  document.querySelectorAll('.adm-item').forEach(el=>el.classList.remove('drag-over'));
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e){e.currentTarget.classList.remove('drag-over');}
+async function onDrop(e,sec,toIdx){
+  e.preventDefault();
+  document.querySelectorAll('.adm-item').forEach(el=>{el.classList.remove('drag-over');el.classList.remove('dragging');});
+  if(dragSec!==sec||dragIdx===toIdx||dragIdx===null)return;
+  showOverlay('순서 저장 중...');
+  const cfg=await getConfig(adminStore);
+  const items=cfg.checklist[sec];
+  const [moved]=items.splice(dragIdx,1);
+  items.splice(toIdx,0,moved);
+  await setConfig(adminStore,cfg);
+  dragSec=null;dragIdx=null;dragOverIdx=null;
+  hideOverlay();showToast('순서가 저장됐습니다');renderHomeBody();
+}
+function onDragEnd(e){
+  e.target.classList.remove('dragging');
+  document.querySelectorAll('.adm-item').forEach(el=>el.classList.remove('drag-over'));
+}
+
+// ── 터치 드래그 (모바일) ──
+let touchSec=null,touchFromIdx=null,touchClone=null,touchScrollY=0;
+function onTouchStart(e,sec,idx){
+  if(e.target.className!=='drag-handle'&&!e.target.closest('.drag-handle'))return;
+  touchSec=sec;touchFromIdx=idx;
+  const el=e.currentTarget;
+  const rect=el.getBoundingClientRect();
+  touchClone=el.cloneNode(true);
+  touchClone.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:.85;z-index:9999;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.2);border-radius:8px;background:var(--card)`;
+  document.body.appendChild(touchClone);
+  el.classList.add('dragging');
+  touchScrollY=window.scrollY;
+}
+function onTouchMove(e){
+  if(!touchClone)return;
+  e.preventDefault();
+  const t=e.touches[0];
+  touchClone.style.top=(t.clientY-30)+'px';
+  touchClone.style.left=(t.clientX-20)+'px';
+  const under=document.elementFromPoint(t.clientX,t.clientY);
+  const item=under?under.closest('.adm-item[data-idx]'):null;
+  document.querySelectorAll('.adm-item').forEach(el=>el.classList.remove('drag-over'));
+  if(item&&item.dataset.sec===touchSec)item.classList.add('drag-over');
+}
+async function onTouchEnd(e,sec,idx){
+  if(!touchClone){touchSec=null;touchFromIdx=null;return;}
+  const t=e.changedTouches[0];
+  const under=document.elementFromPoint(t.clientX,t.clientY);
+  const item=under?under.closest('.adm-item[data-idx]'):null;
+  if(touchClone){touchClone.remove();touchClone=null;}
+  document.querySelectorAll('.adm-item').forEach(el=>{el.classList.remove('dragging');el.classList.remove('drag-over');});
+  const toIdx=item&&item.dataset.sec===touchSec?parseInt(item.dataset.idx):null;
+  if(toIdx!==null&&toIdx!==touchFromIdx){
+    showOverlay('순서 저장 중...');
+    const cfg=await getConfig(adminStore);
+    const items=cfg.checklist[touchSec];
+    const [moved]=items.splice(touchFromIdx,1);
+    items.splice(toIdx,0,moved);
+    await setConfig(adminStore,cfg);
+    hideOverlay();showToast('순서가 저장됐습니다');renderHomeBody();
+  }
+  touchSec=null;touchFromIdx=null;
 }
 
 // ── REPORT ──
@@ -880,8 +1085,13 @@ async function unlockCurrent(){
 // 전역 함수 노출
 window.doLogin=doLogin;window.doLogout=doLogout;
 window.switchHTab=switchHTab;window.enterStore=enterStore;
-window.admDelStaff=admDelStaff;window.admAddStaff=admAddStaff;
-window.admDelItem=admDelItem;window.admAddItem=admAddItem;
+window.admDelStaff=admDelStaff;window.admAddStaff=admAddStaff;window.admEditStaff=admEditStaff;
+window.admDelItem=admDelItem;window.admAddItem=admAddItem;window.admSaveEdit=admSaveEdit;
+window.showEditRow=showEditRow;window.hideEditRow=hideEditRow;
+window.toggleAdmCollapse=toggleAdmCollapse;
+window.onDragStart=onDragStart;window.onDragOver=onDragOver;window.onDragLeave=onDragLeave;
+window.onDrop=onDrop;window.onDragEnd=onDragEnd;
+window.onTouchStart=onTouchStart;window.onTouchMove=onTouchMove;window.onTouchEnd=onTouchEnd;
 window.loadReport=loadReport;
 window.goBack=goBack;window.onDateChange=onDateChange;window.switchTab=switchTab;
 window.toggleSec=toggleSec;
