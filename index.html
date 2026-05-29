@@ -151,6 +151,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .submit-bar{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--border);padding:10px 14px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0));display:flex;gap:8px;box-shadow:0 -3px 15px rgba(0,0,0,0.06)}
 .btn-save{padding:12px 16px;background:none;border:1px solid var(--border);border-radius:11px;color:var(--text2);font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
 .btn-submit{flex:1;padding:12px;background:var(--accent);border:none;border-radius:11px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-unlock{padding:12px 14px;background:none;border:1px solid var(--border);border-radius:11px;color:var(--warn);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
 
 /* ADMIN */
 .admin-store-sel{width:100%;border:1px solid var(--border);border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none;margin-bottom:14px}
@@ -259,9 +260,10 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <button class="tb" onclick="switchTab(3)">📝 메모</button>
   </div>
   <div class="content" id="app-content"></div>
-  <div class="submit-bar">
+  <div class="submit-bar" id="submit-bar">
     <button class="btn-save" onclick="saveNow()">💾 저장</button>
-    <button class="btn-submit" id="btn-submit" onclick="submitDay()">✅ 오늘 업무 제출</button>
+    <button class="btn-submit" id="btn-submit" onclick="submitCurrent()">✅ 제출</button>
+    <button class="btn-unlock" id="btn-unlock" onclick="unlockCurrent()" style="display:none">🔓 수정</button>
   </div>
 </div>
 
@@ -480,7 +482,7 @@ async function renderStores(body){
       <div class="tile-name">${s.name}</div>
       <div class="tile-code">${s.code}</div>
       <div class="tile-rate">${rate}%</div>
-      ${data.submitted?'<div class="tile-sub">✓제출</div>':''}
+      ${data.submitted?'<div class="tile-sub">✓전체제출</div>':(data.submittedCheck||data.submittedFac||data.submittedRepair)?'<div class="tile-sub" style="color:var(--warn)">일부제출</div>':''}
     </div>`;
   }
   body.innerHTML=html+'</div>';
@@ -589,14 +591,17 @@ async function loadReport(){
     totalDone+=done;totalItems+=total;
     if(data.submitted)subCnt++;
     const bc=rate>=80?'#1D9E75':rate>=50?'#BA7517':'#A32D2D';
-    const badge=data.submitted?'<span class="badge badge-ok">제출완료</span>':rate>0?'<span class="badge badge-warn">진행중</span>':'<span class="badge badge-no">미시작</span>';
+    const badge=data.submitted?'<span class="badge badge-ok">전체제출</span>':
+      (data.submittedCheck||data.submittedFac||data.submittedRepair)?'<span class="badge badge-warn">일부제출</span>':
+      rate>0?'<span class="badge badge-warn">진행중</span>':'<span class="badge badge-no">미시작</span>';
+    const subDetail=`<span>${data.submittedCheck?'✓체크':'·체크'}</span><span>${data.submittedFac?'✓시설':'·시설'}</span><span>${data.submittedRepair?'✓보수':'·보수'}</span>`;
     cards+=`<div class="rpt-card">
       <div class="rpt-card-top">
         <div><div class="rpt-store">${s.name}</div><div style="font-size:11px;color:var(--text2)">${s.code} · ${s.type}</div></div>
         <div style="text-align:right"><div class="rpt-rate" style="color:${bc}">${rate}%</div>${badge}</div>
       </div>
       <div class="rpt-bar-wrap"><div class="rpt-bar" style="width:${rate}%;background:${bc}"></div></div>
-      <div class="rpt-meta"><span>${done} / ${total} 완료</span><span>제출: ${data.submitted?'O':'X'}</span>${data.submittedAt?`<span>${data.submittedAt.slice(11,16)} 제출</span>`:''}</div>
+      <div class="rpt-meta"><span>${done} / ${total} 완료</span>${subDetail}${data.submittedAt?`<span>${data.submittedAt.slice(11,16)} 완료</span>`:''}</div>
     </div>`;
   }
   const avg=totalItems?Math.round(totalDone/totalItems*100):0;
@@ -620,7 +625,9 @@ async function showApp(){
 }
 function goBack(){fbUnlisten(curListener);curListener=null;showHome();}
 async function onDateChange(){await renderCurrentTab();await updateProgress();}
-async function switchTab(n){curTab=n;updateTabBar();await renderCurrentTab();}
+async function switchTab(n){curTab=n;updateTabBar();await renderCurrentTab();
+  const data=await getData(curStore.code,curDate());updateSubmitBar(data);
+}
 function updateTabBar(){document.querySelectorAll('.tb').forEach((b,i)=>b.classList.toggle('active',i===curTab));}
 async function renderCurrentTab(){
   if(curTab===0)await renderChecklist();
@@ -668,7 +675,7 @@ async function renderChecklist(){
     </div>`;
   }
   document.getElementById('app-content').innerHTML=html;
-  checkSubmitBtn(data);
+  updateSubmitBar(data);
 }
 
 async function setSt(key,val){
@@ -679,8 +686,7 @@ async function setSt(key,val){
   await setData(curStore.code,curDate(),data);
   setSyncB('saved','저장됨 ✓');
   await renderChecklist();await updateProgress();
-}
-async function setStaffF(key,val){
+}async function setStaffF(key,val){
   const data=await getData(curStore.code,curDate());
   data.checks=data.checks||{};
   data.checks[key+'_staff']=val;
@@ -780,18 +786,53 @@ async function setMemo(key,val){
   await setData(curStore.code,curDate(),d);
 }
 
+// ── 탭별 제출 키 ──
+function tabSubmitKey(){
+  if(curTab===0)return 'submittedCheck';
+  if(curTab===1)return 'submittedFac';
+  if(curTab===2)return 'submittedRepair';
+  return null;
+}
+function tabLabel(){
+  if(curTab===0)return '체크시트';
+  if(curTab===1)return '시설점검';
+  if(curTab===2)return '보수요청';
+  return '';
+}
+
 // ── PROGRESS & SUBMIT ──
 async function updateProgress(){
   const cfg=await getConfig(curStore.code);
   const data=await getData(curStore.code,curDate());
   const rate=calcRate(cfg,data);
   document.getElementById('prog-pill').textContent=rate+'%';
-  checkSubmitBtn(data);
+  updateSubmitBar(data);
 }
-function checkSubmitBtn(data){
-  const btn=document.getElementById('btn-submit');if(!btn)return;
-  if(data.submitted){btn.textContent='✓ 제출완료';btn.style.background='#1D9E75';}
-  else{btn.textContent='✅ 오늘 업무 제출';btn.style.background='';}
+function updateSubmitBar(data){
+  const key=tabSubmitKey();
+  const btnSubmit=document.getElementById('btn-submit');
+  const btnUnlock=document.getElementById('btn-unlock');
+  if(!btnSubmit)return;
+  // 메모 탭은 제출 없음
+  if(key===null){
+    btnSubmit.style.display='none';
+    btnUnlock.style.display='none';
+    return;
+  }
+  btnSubmit.style.display='';
+  if(data[key]){
+    // 제출된 상태
+    btnSubmit.textContent='✓ '+tabLabel()+' 제출완료';
+    btnSubmit.style.background='#1D9E75';
+    btnSubmit.disabled=true;
+    btnUnlock.style.display='';
+  } else {
+    // 미제출 상태
+    btnSubmit.textContent='✅ '+tabLabel()+' 제출';
+    btnSubmit.style.background='';
+    btnSubmit.disabled=false;
+    btnUnlock.style.display='none';
+  }
 }
 async function saveNow(){
   setSyncB('saving','저장 중...');
@@ -799,20 +840,41 @@ async function saveNow(){
   setSyncB('saved','저장됨 ✓');
   showToast('저장되었습니다');
 }
-async function submitDay(){
+async function submitCurrent(){
+  const key=tabSubmitKey();
+  if(!key)return;
   const data=await getData(curStore.code,curDate());
-  if(data.submitted){showToast('이미 제출된 날짜입니다');return;}
-  const cfg=await getConfig(curStore.code);
-  const rate=calcRate(cfg,data);
-  if(!confirm(`${curDate()} 업무를 제출하시겠습니까?\n현재 이행률: ${rate}%`))return;
+  if(data[key]){showToast('이미 제출되었습니다. 수정 버튼을 눌러주세요');return;}
+  const label=tabLabel();
+  if(!confirm(`${curDate()} [${label}]을 제출하시겠습니까?\n제출 후 수정 버튼으로 다시 수정 가능합니다.`))return;
   showOverlay('제출 중...');
-  data.submitted=true;
-  data.submittedAt=new Date().toISOString();
-  data.submittedRate=rate;
+  data[key]=true;
+  data[key+'At']=new Date().toISOString();
+  // 3개 모두 제출됐으면 전체 제출 완료 표시
+  if(data.submittedCheck&&data.submittedFac&&data.submittedRepair){
+    data.submitted=true;data.submittedAt=new Date().toISOString();
+  }
   await setData(curStore.code,curDate(),data);
   hideOverlay();
-  showToast('제출 완료! 이행률 '+rate+'%');
-  checkSubmitBtn(data);
+  showToast('['+label+'] 제출 완료!');
+  updateSubmitBar(data);
+}
+async function unlockCurrent(){
+  const key=tabSubmitKey();
+  if(!key)return;
+  const label=tabLabel();
+  if(!confirm(`[${label}] 제출을 취소하고 수정하시겠습니까?`))return;
+  showOverlay('수정 모드로 전환 중...');
+  const data=await getData(curStore.code,curDate());
+  data[key]=false;
+  delete data[key+'At'];
+  // 전체 제출 상태도 해제
+  data.submitted=false;
+  delete data.submittedAt;
+  await setData(curStore.code,curDate(),data);
+  hideOverlay();
+  showToast('['+label+'] 수정 가능 상태로 변경됐습니다');
+  updateSubmitBar(data);
 }
 
 // 전역 함수 노출
@@ -826,7 +888,7 @@ window.toggleSec=toggleSec;
 window.setSt=setSt;window.setStaffF=setStaffF;
 window.toggleFac=toggleFac;window.setFac=setFac;
 window.setRepair=setRepair;window.setMemo=setMemo;
-window.saveNow=saveNow;window.submitDay=submitDay;
+window.saveNow=saveNow;window.submitCurrent=submitCurrent;window.unlockCurrent=unlockCurrent;
 window.adminStore=adminStore;
 </script>
 </body>
