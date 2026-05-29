@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MP체크리스트">
 <meta name="theme-color" content="#1a1a2e">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>MPLAYGROUND 체크리스트</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -278,6 +281,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <button class="htab active" id="ht-stores" onclick="switchHTab('stores')">매장 현황</button>
       <button class="htab" id="ht-staff" onclick="switchHTab('staff')">직원 관리</button>
       <button class="htab" id="ht-admin" onclick="switchHTab('admin')">체크리스트 관리</button>
+      <button class="htab" id="ht-stores-manage" onclick="switchHTab('stores-manage')">매장 관리</button>
       <button class="htab" id="ht-report" onclick="switchHTab('report')">이행률 보고</button>
     </div>
   </div>
@@ -357,7 +361,8 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // ── 데이터 상수 ──
-const STORES=[
+// 기본 매장 목록 (Firebase에 없을 때 초기값)
+const DEFAULT_STORES=[
   {code:'M0001',name:'홍대본점',type:'직영점'},{code:'M0002',name:'건대점',type:'직영점'},
   {code:'M0003',name:'수원점',type:'백화점'},{code:'M0004',name:'안산점',type:'직영점'},
   {code:'M0005',name:'고양점',type:'백화점'},{code:'M0006',name:'홍대3호점',type:'직영점'},
@@ -367,8 +372,13 @@ const STORES=[
   {code:'M0014',name:'서현점',type:'직영점'},{code:'M0015',name:'천안점',type:'백화점'},
   {code:'M0016',name:'명동2호점',type:'직영점'},{code:'M0017',name:'성수1호점',type:'직영점'},
 ];
+let STORES=[...DEFAULT_STORES]; // Firebase에서 로드 후 덮어씀
 const ACCTS={admin:'admin1234'};
-STORES.forEach(s=>ACCTS[s.code]='1234');
+function rebuildActs(){ STORES.forEach(s=>{ if(!ACCTS[s.code]) ACCTS[s.code]='1234'; }); }
+rebuildActs();
+
+// ── 매장 목록 Firebase 경로 ──
+function storesPath(){ return 'meta/stores'; }
 
 const DEF_CL={
   '기본 점검':[
@@ -457,6 +467,26 @@ function dayPath(sc,date){return `days/${sc}/${date.replace(/-/g,'')}`;}
 function cfgPath(sc){return `configs/${sc}`;}
 function staffPath(sc){return `staff/${sc}`;}
 
+// 매장 목록 Firebase 저장/로드
+async function loadStores(){
+  try{
+    const data=await fbGet(storesPath());
+    if(data&&Array.isArray(data)&&data.length>0){
+      STORES=data;
+    } else {
+      // 최초 1회: 기본 매장 목록을 Firebase에 저장
+      await fbSet(storesPath(), DEFAULT_STORES);
+      STORES=[...DEFAULT_STORES];
+    }
+    rebuildActs();
+  } catch(e){ console.warn('loadStores error',e); STORES=[...DEFAULT_STORES]; }
+}
+async function saveStores(list){
+  await fbSet(storesPath(), list);
+  STORES=list;
+  rebuildActs();
+}
+
 async function getData(sc,date){
   const d=await fbGet(dayPath(sc,date));
   return d||{checks:{},facility:{},repairs:[],memo:{},submitted:false};
@@ -496,15 +526,23 @@ window.addEventListener('popstate',()=>{
 document.getElementById('inp-pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('inp-id').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('inp-pw').focus();});
 
-function doLogin(){
+async function doLogin(){
   const id=document.getElementById('inp-id').value.trim();
   const pw=document.getElementById('inp-pw').value;
+  // 매장 목록 먼저 로드 (최신 반영)
+  showOverlay('로그인 중...');
+  await loadStores();
+  hideOverlay();
   if(ACCTS[id]&&ACCTS[id]===pw){
     document.getElementById('login-err').style.display='none';
     curUser=id;
     history.pushState({},'',location.href);
     if(id==='admin'){curStore=null;showHome();}
-    else{curStore=STORES.find(s=>s.code===id);showApp();}
+    else{
+      curStore=STORES.find(s=>s.code===id);
+      if(!curStore){document.getElementById('login-err').style.display='block';return;}
+      showApp();
+    }
   } else {
     document.getElementById('login-err').style.display='block';
   }
@@ -521,7 +559,7 @@ function doLogout(){
 function showHome(){show('s-home');switchHTab('stores');}
 function switchHTab(t){
   homeTab=t;
-  ['stores','staff','admin','report'].forEach(x=>{const el=document.getElementById('ht-'+x);if(el)el.classList.toggle('active',x===t);});
+  ['stores','staff','admin','stores-manage','report'].forEach(x=>{const el=document.getElementById('ht-'+x);if(el)el.classList.toggle('active',x===t);});
   renderHomeBody();
 }
 async function renderHomeBody(){
@@ -530,6 +568,7 @@ async function renderHomeBody(){
   if(homeTab==='stores')await renderStores(body);
   else if(homeTab==='staff')await renderStaffAll(body);
   else if(homeTab==='admin')await renderAdmin(body);
+  else if(homeTab==='stores-manage')await renderStoresManage(body);
   else renderReport(body);
 }
 
@@ -1200,6 +1239,147 @@ async function unlockCurrent(){
   updateSubmitBar(data);
 }
 
+// ── 매장 관리 ──
+async function renderStoresManage(body){
+  const stores = STORES;
+  const typeOpts = ['직영점','백화점','아울렛','팝업스토어','기타'].map(t=>`<option>${t}</option>`).join('');
+
+  let listHtml = stores.map((s,i)=>`
+    <div class="adm-card" style="margin-bottom:8px">
+      <div class="adm-collapse-hdr">
+        <div class="sec-manage-hdr" onclick="toggleAdmCollapse(this.closest('.adm-collapse-hdr'))">
+          <span class="adm-collapse-title">${s.name}</span>
+          <span class="adm-collapse-cnt">${s.code}</span>
+          <span class="adm-collapse-cnt" style="margin-left:2px">${s.type}</span>
+          <span class="adm-collapse-arr">▼</span>
+        </div>
+        <div class="sec-manage-btns">
+          <button class="btn-sec-edit" onclick="showStoreEditRow(${i})">수정</button>
+          <button class="btn-sec-del" onclick="admDelStore(${i})">삭제</button>
+        </div>
+      </div>
+      <div class="sec-edit-row" id="store-edit-row-${i}">
+        <input type="text" id="store-edit-code-${i}" value="${s.code}" placeholder="매장코드 (예: M0018)">
+        <input type="text" id="store-edit-name-${i}" value="${s.name}" placeholder="매장명">
+        <select id="store-edit-type-${i}" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--card);color:var(--text);outline:none;margin-bottom:6px">
+          ${['직영점','백화점','아울렛','팝업스토어','기타'].map(t=>`<option${s.type===t?' selected':''}>${t}</option>`).join('')}
+        </select>
+        <div class="sec-edit-row-btns">
+          <button class="btn-save-edit" style="flex:1" onclick="admSaveStore(${i})">저장</button>
+          <button class="btn-cancel-edit" onclick="hideStoreEditRow(${i})">취소</button>
+        </div>
+      </div>
+      <div class="adm-collapse-body">
+        <div style="padding:10px 14px;font-size:12px;color:var(--text2);line-height:1.8">
+          <div>🔑 로그인 코드: <strong style="color:var(--text)">${s.code}</strong></div>
+          <div>🔒 비밀번호: <strong style="color:var(--text)">1234</strong> (기본값)</div>
+          <div>🏪 유형: <strong style="color:var(--text)">${s.type}</strong></div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  body.innerHTML=`
+    <div class="adm-sec">
+      <div class="adm-sec-title">등록된 매장 (${stores.length}개)</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;padding:8px 12px;background:var(--inp-bg);border-radius:8px;border:1px solid var(--border);line-height:1.7">
+        ℹ️ 매장 추가 시 로그인 코드·비밀번호가 자동 설정되며<br>
+        직원 관리·체크리스트 관리에 즉시 반영됩니다
+      </div>
+      ${listHtml}
+    </div>
+    <div class="adm-sec">
+      <div class="adm-sec-title">새 매장 추가</div>
+      <div class="adm-card" style="padding:16px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">매장코드 <span style="color:var(--danger)">*</span></div>
+            <input type="text" id="new-store-code" placeholder="예: M0018, M0019" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">매장명 <span style="color:var(--danger)">*</span></div>
+            <input type="text" id="new-store-name" placeholder="예: 강남점, 부산점" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">매장 유형</div>
+            <select id="new-store-type" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+              ${typeOpts}
+            </select>
+          </div>
+          <div style="padding:10px 12px;background:var(--inp-bg);border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--text2);line-height:1.7">
+            ✅ 추가 시 자동 설정:<br>
+            · 로그인 아이디: 입력한 매장코드<br>
+            · 초기 비밀번호: <strong>1234</strong><br>
+            · 체크리스트: 기본 항목으로 시작
+          </div>
+          <button class="btn-submit" onclick="admAddStore()" style="margin-top:4px">+ 매장 추가</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function showStoreEditRow(idx){
+  document.getElementById('store-edit-row-'+idx).style.display='block';
+}
+function hideStoreEditRow(idx){
+  document.getElementById('store-edit-row-'+idx).style.display='none';
+}
+async function admAddStore(){
+  const code=(document.getElementById('new-store-code').value||'').trim().toUpperCase();
+  const name=(document.getElementById('new-store-name').value||'').trim();
+  const type=document.getElementById('new-store-type').value;
+  if(!code) return showToast('매장코드를 입력해주세요');
+  if(!name) return showToast('매장명을 입력해주세요');
+  if(!/^[A-Z0-9]+$/.test(code)) return showToast('매장코드는 영문+숫자만 가능합니다 (예: M0018)');
+  if(STORES.find(s=>s.code===code)) return showToast(code+' 코드는 이미 존재합니다');
+  const ok=await showConfirm('매장 추가',
+    '"'+name+'" ('+code+') 매장을 추가하시겠습니까?\n\n로그인 아이디: '+code+'\n초기 비밀번호: 1234',
+    'primary','🏪');
+  if(!ok) return;
+  showOverlay('매장 추가 중...');
+  const newList=[...STORES, {code, name, type}];
+  await saveStores(newList);
+  // 신규 매장은 기본 체크리스트로 초기화
+  const existCfg=await fbGet(cfgPath(code));
+  if(!existCfg) await setConfig(code,{checklist:JSON.parse(JSON.stringify(DEF_CL))});
+  hideOverlay();
+  showToast('"'+name+'" 매장이 추가됐습니다!');
+  renderStoresManage(document.getElementById('home-body'));
+}
+async function admSaveStore(idx){
+  const code=(document.getElementById('store-edit-code-'+idx).value||'').trim().toUpperCase();
+  const name=(document.getElementById('store-edit-name-'+idx).value||'').trim();
+  const type=document.getElementById('store-edit-type-'+idx).value;
+  const oldStore=STORES[idx];
+  if(!code||!name) return showToast('코드와 매장명을 모두 입력해주세요');
+  if(!/^[A-Z0-9]+$/.test(code)) return showToast('매장코드는 영문+숫자만 가능합니다');
+  if(code!==oldStore.code && STORES.find((s,i)=>s.code===code&&i!==idx))
+    return showToast(code+' 코드는 이미 사용 중입니다');
+  const ok=await showConfirm('매장 수정',
+    '"'+oldStore.name+'" → "'+name+'"\n코드: '+oldStore.code+(code!==oldStore.code?' → '+code:'')+'\n유형: '+type+'\n\n수정하시겠습니까?',
+    'primary','✏️');
+  if(!ok) return;
+  showOverlay('저장 중...');
+  const newList=[...STORES];
+  newList[idx]={code,name,type};
+  await saveStores(newList);
+  hideOverlay();
+  showToast('"'+name+'" 매장 정보가 수정됐습니다');
+  renderStoresManage(document.getElementById('home-body'));
+}
+async function admDelStore(idx){
+  const s=STORES[idx];
+  const ok=await showConfirm('매장 삭제',
+    '"'+s.name+'" ('+s.code+') 매장을 삭제하시겠습니까?\n\n⚠️ 해당 매장의 체크리스트·직원 데이터는\n별도로 유지됩니다 (로그인만 불가)',
+    'danger','🗑️');
+  if(!ok) return;
+  showOverlay('삭제 중...');
+  const newList=STORES.filter((_,i)=>i!==idx);
+  await saveStores(newList);
+  hideOverlay();
+  showToast('"'+s.name+'" 매장이 삭제됐습니다');
+  renderStoresManage(document.getElementById('home-body'));
+}
+
 // ── 커스텀 확인 모달 ──
 let confirmResolve = null;
 function showConfirm(title, msg, type='danger', icon='⚠️'){
@@ -1274,6 +1454,9 @@ window.doLogin=doLogin;window.doLogout=doLogout;
 window.switchHTab=switchHTab;window.enterStore=enterStore;
 window.admDelStaff=admDelStaff;window.admAddStaff=admAddStaff;window.admEditStaff=admEditStaff;window.renderStaffAll=renderStaffAll;
 window.admDelItem=admDelItem;window.admAddItem=admAddItem;window.admSaveEdit=admSaveEdit;
+window.renderStoresManage=renderStoresManage;
+window.admAddStore=admAddStore;window.admSaveStore=admSaveStore;window.admDelStore=admDelStore;
+window.showStoreEditRow=showStoreEditRow;window.hideStoreEditRow=hideStoreEditRow;
 window.showEditRow=showEditRow;window.hideEditRow=hideEditRow;
 window.showSecEditRow=showSecEditRow;window.hideSecEditRow=hideSecEditRow;
 window.admSaveSec=admSaveSec;window.admDelSec=admDelSec;window.admAddSec=admAddSec;
