@@ -623,8 +623,8 @@ async function doLogin(){
   // 매장 목록 먼저 로드 (최신 반영)
   showOverlay('로그인 중...');
   await loadStores();
-  await loadCustomPasswords();
-  rebuildActs();
+  rebuildActs();          // 먼저 기본 계정 설정 (mng 포함)
+  await loadCustomPasswords(); // 그 다음 Firebase 커스텀 PW로 덮어씀
   hideOverlay();
   if(ACCTS[id]&&ACCTS[id]===pw){
     document.getElementById('login-err').style.display='none';
@@ -632,7 +632,9 @@ async function doLogin(){
     history.pushState({},'',location.href);
     if(id==='admin'){curStore=null;showHome();}
     else{
-      curStore=STORES.find(s=>s.code===id);
+      // mng 계정이면 앞의 매장코드로 매장 찾기 (예: M0001-mng → M0001)
+      const storeCode = id.endsWith('-mng') ? id.replace('-mng','') : id;
+      curStore=STORES.find(s=>s.code===storeCode);
       if(!curStore){document.getElementById('login-err').style.display='block';return;}
       showApp();
     }
