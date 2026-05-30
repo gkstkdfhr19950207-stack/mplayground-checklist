@@ -214,6 +214,44 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .sum-val{font-size:24px;font-weight:700;margin-bottom:2px}
 .sum-lbl{font-size:11px;color:var(--text2)}
 .empty-msg{text-align:center;padding:30px 0;color:var(--text2);font-size:13px}
+/* 마감보고 */
+.closing-section{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.closing-section h3{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--primary);display:flex;align-items:center;gap:6px}
+@media(prefers-color-scheme:dark){.closing-section h3{color:#f0f0f0}}
+.closing-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.closing-label{font-size:12px;color:var(--text2);min-width:60px}
+.closing-val{font-size:14px;font-weight:700;color:var(--accent)}
+.closing-inp{flex:1;border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none}
+.closing-ta{width:100%;border:1px solid var(--border);border-radius:7px;padding:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--inp-bg);outline:none;resize:none}
+.achieve-bar-wrap{background:var(--inp-bg);border-radius:10px;height:8px;overflow:hidden;margin:6px 0}
+.achieve-bar{height:100%;border-radius:10px;transition:width .4s}
+.photo-upload-area{border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;color:var(--text2);font-size:13px;margin-bottom:8px;transition:border-color .2s}
+.photo-upload-area:hover{border-color:var(--accent2)}
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.photo-thumb{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1}
+.photo-thumb img{width:100%;height:100%;object-fit:cover}
+.photo-thumb-del{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* 권한 배지 */
+.perm-badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;white-space:nowrap}
+.perm-manager{background:#e8f4fd;color:#1a6fa8}
+.perm-master{background:#f3e8fd;color:#6a1ab8}
+@media(prefers-color-scheme:dark){.perm-manager{background:#1a3a50;color:#7ec8f5}.perm-master{background:#2e1a50;color:#c87ef5}}
+/* 피드백 */
+.feedback-card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;border:2px solid var(--accent2);box-shadow:var(--shadow)}
+.feedback-header{font-size:13px;font-weight:600;color:var(--accent2);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.feedback-meta{font-size:11px;color:var(--text2);margin-top:8px}
+/* 계정관리 */
+.acct-card{background:var(--card);border-radius:12px;overflow:hidden;border:1px solid var(--border);margin-bottom:8px;box-shadow:var(--shadow)}
+.acct-item{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.acct-item:last-child{border-bottom:none}
+.acct-info{flex:1}
+.acct-id{font-size:13px;font-weight:600}
+.acct-pw{font-size:11px;color:var(--text2);margin-top:1px}
+.acct-type{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
+.acct-staff{background:#e8f5e9;color:#2e7d32}
+.acct-manager{background:#e8f4fd;color:#1a6fa8}
+.acct-master{background:#f3e8fd;color:#6a1ab8}
+@media(prefers-color-scheme:dark){.acct-staff{background:#1a3020}.acct-manager{background:#1a3a50}.acct-master{background:#2e1a50}}
 
 /* TOAST */
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .25s;white-space:nowrap;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
@@ -282,6 +320,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
       <button class="htab" id="ht-staff" onclick="switchHTab('staff')">직원 관리</button>
       <button class="htab" id="ht-admin" onclick="switchHTab('admin')">체크리스트 관리</button>
       <button class="htab" id="ht-stores-manage" onclick="switchHTab('stores-manage')">매장 관리</button>
+      <button class="htab" id="ht-accounts" onclick="switchHTab('accounts')">계정 관리</button>
+      <button class="htab" id="ht-closing-report" onclick="switchHTab('closing-report')">마감보고 확인</button>
       <button class="htab" id="ht-report" onclick="switchHTab('report')">이행률 보고</button>
     </div>
   </div>
@@ -310,7 +350,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <button class="tb active" onclick="switchTab(0)">📋 체크시트</button>
     <button class="tb" onclick="switchTab(1)">🔧 시설점검</button>
     <button class="tb" onclick="switchTab(2)">📩 보수요청</button>
-    <button class="tb" onclick="switchTab(3)">📝 메모</button>
+    <button class="tb" id="tb-closing" onclick="switchTab(3)">🌙 마감보고</button>
+    <button class="tb" onclick="switchTab(4)">📝 메모</button>
   </div>
   <div class="content" id="app-content"></div>
   <div class="submit-bar" id="submit-bar">
@@ -344,6 +385,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <!-- Firebase SDK -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -374,8 +416,37 @@ const DEFAULT_STORES=[
 ];
 let STORES=[...DEFAULT_STORES]; // Firebase에서 로드 후 덮어씀
 const ACCTS={admin:'admin1234'};
-function rebuildActs(){ STORES.forEach(s=>{ if(!ACCTS[s.code]) ACCTS[s.code]='1234'; }); }
+// 계정 권한: master=admin, manager=매장관리자, staff=일반매장
+const ROLES={}; // code -> 'master'|'manager'|'staff'
+ROLES['admin']='master';
+function rebuildActs(){
+  STORES.forEach(s=>{
+    if(!ACCTS[s.code]){ ACCTS[s.code]='1234'; ROLES[s.code]='staff'; }
+    const mng=s.code+'-mng';
+    if(!ACCTS[mng]){ ACCTS[mng]='manager'; ROLES[mng]='manager'; }
+  });
+}
 rebuildActs();
+function getRole(id){ return ROLES[id]||'staff'; }
+function isMaster(){ return curUser==='admin'; }
+function isManager(){ return getRole(curUser)==='manager'||isMaster(); }
+// Firebase 계정 비밀번호 저장 경로
+function acctPwPath(id){ return 'meta/passwords/'+id.replace('-','_'); }
+async function loadCustomPasswords(){
+  try{
+    const data=await fbGet('meta/passwords');
+    if(data){
+      Object.entries(data).forEach(([k,v])=>{
+        const id=k.replace('_','-');
+        ACCTS[id]=v;
+      });
+    }
+  }catch(e){console.warn('loadCustomPasswords err',e);}
+}
+// admin 이름 목록
+function adminStaffPath(){ return 'meta/adminStaff'; }
+async function getAdminStaff(){ const d=await fbGet(adminStaffPath()); return d?Object.values(d):[]; }
+async function setAdminStaff(list){ await fbSet(adminStaffPath(), list.length?Object.fromEntries(list.map((n,i)=>[i,n])):null); }
 
 // ── 매장 목록 Firebase 경로 ──
 function storesPath(){ return 'meta/stores'; }
@@ -467,6 +538,26 @@ function dayPath(sc,date){return `days/${sc}/${date.replace(/-/g,'')}`;}
 function cfgPath(sc){return `configs/${sc}`;}
 function staffPath(sc){return `staff/${sc}`;}
 
+// ── 간부 경로 ──
+function chiefPath(sc){ return 'chiefs/'+sc; }
+async function getChiefs(sc){
+  const d=await fbGet(chiefPath(sc));
+  return d?Object.values(d).filter(Boolean):[];
+}
+async function setChiefs(sc,list){
+  await fbSet(chiefPath(sc), list.length?Object.fromEntries(list.map((n,i)=>[i,n])):null);
+}
+// 현재 로그인 계정이 간부인지 확인
+async function isChief(){
+  if(isMaster())return true;
+  if(!curStore)return false;
+  const chiefs=await getChiefs(curStore.code);
+  const staffList=await getStaff(curStore.code);
+  // manager 계정은 항상 간부
+  if(isManager())return true;
+  return false;
+}
+
 // 매장 목록 Firebase 저장/로드
 async function loadStores(){
   try{
@@ -532,6 +623,8 @@ async function doLogin(){
   // 매장 목록 먼저 로드 (최신 반영)
   showOverlay('로그인 중...');
   await loadStores();
+  await loadCustomPasswords();
+  rebuildActs();
   hideOverlay();
   if(ACCTS[id]&&ACCTS[id]===pw){
     document.getElementById('login-err').style.display='none';
@@ -559,7 +652,7 @@ function doLogout(){
 function showHome(){show('s-home');switchHTab('stores');}
 function switchHTab(t){
   homeTab=t;
-  ['stores','staff','admin','stores-manage','report'].forEach(x=>{const el=document.getElementById('ht-'+x);if(el)el.classList.toggle('active',x===t);});
+  ['stores','staff','admin','stores-manage','accounts','closing-report','report'].forEach(x=>{const el=document.getElementById('ht-'+x);if(el)el.classList.toggle('active',x===t);});
   renderHomeBody();
 }
 async function renderHomeBody(){
@@ -569,6 +662,8 @@ async function renderHomeBody(){
   else if(homeTab==='staff')await renderStaffAll(body);
   else if(homeTab==='admin')await renderAdmin(body);
   else if(homeTab==='stores-manage')await renderStoresManage(body);
+  else if(homeTab==='accounts')await renderAccountsMgmt(body);
+  else if(homeTab==='closing-report')await renderClosingReport(body);
   else renderReport(body);
 }
 
@@ -731,19 +826,27 @@ async function renderStaffAll(body){
   </div>`;
 
   const targetStores = staffViewStore==='ALL' ? STORES : STORES.filter(s=>s.code===staffViewStore);
+  // 간부 목록도 로드
+  const allChiefs={};
+  for(const s of targetStores){ allChiefs[s.code]=await getChiefs(s.code); }
 
   let html = storeSel;
   for(const s of targetStores){
     const list = allStaff[s.code]||[];
+    const chiefs = allChiefs[s.code]||[];
     const itemsHtml = list.length
-      ? list.map((n,i)=>`
-        <div class="adm-item">
-          <div class="adm-item-info"><div class="adm-item-name">${n}</div></div>
-          <div class="adm-btns">
-            <button class="btn-edit-item" onclick="admEditStaff('${s.code}',${i},'${n.replace(/'/g,"\\'")}')">수정</button>
-            <button class="btn-del" onclick="admDelStaff('${s.code}',${i})">삭제</button>
-          </div>
-        </div>`).join('')
+      ? list.map((n,i)=>{
+          const isC=chiefs.includes(n);
+          return `<div class="adm-item">
+            <div class="adm-item-info">
+              <div class="adm-item-name">${n}${isC?'<span class="perm-badge perm-manager" style="margin-left:6px">간부</span>':''}</div>
+            </div>
+            <div class="adm-btns">
+              <button class="btn-edit-item" style="background:${isC?'#e8f4fd':'#f5f5f5'}" onclick="toggleChief('${s.code}','${n.replace(/'/g,"\\'")}',${isC})">${isC?'간부해제':'간부지정'}</button>
+              <button class="btn-edit-item" onclick="admEditStaff('${s.code}',${i},'${n.replace(/'/g,"\\'")}')">수정</button>
+              <button class="btn-del" onclick="admDelStaff('${s.code}',${i})">삭제</button>
+            </div>
+          </div>`;}).join('')
       : '<div class="adm-item"><span style="font-size:13px;color:var(--text2)">등록된 직원 없음</span></div>';
 
     html+=`<div class="adm-card" style="margin-bottom:10px">
@@ -763,6 +866,20 @@ async function renderStaffAll(body){
     </div>`;
   }
   body.innerHTML=html;
+}
+
+async function toggleChief(storeCode, name, isCurrentlyChief){
+  const action=isCurrentlyChief?'간부 해제':'간부 지정';
+  const ok=await showConfirm(action,'"'+name+'"을(를) '+action+'하시겠습니까?','primary','⭐');
+  if(!ok)return;
+  showOverlay('저장 중...');
+  let chiefs=await getChiefs(storeCode);
+  if(isCurrentlyChief){ chiefs=chiefs.filter(n=>n!==name); }
+  else { if(!chiefs.includes(name))chiefs.push(name); }
+  await setChiefs(storeCode,chiefs);
+  hideOverlay();
+  showToast('"'+name+'" '+action+' 완료');
+  await renderStaffAll(document.getElementById('home-body'));
 }
 
 async function admDelStaff(storeCode,idx){
@@ -981,7 +1098,11 @@ async function showApp(){
   document.getElementById('hdr-code').textContent=curStore.code;
   document.getElementById('btn-back').style.display=(curUser==='admin')?'block':'none';
   document.getElementById('cur-date').value=todayStr();
-  curTab=0;updateTabBar();
+  curTab=0;
+  // 마감보고 탭: 관리자+마스터만 표시
+  const tbClosing=document.getElementById('tb-closing');
+  if(tbClosing) tbClosing.style.display=isManager()?'':'none';
+  updateTabBar();
   await renderCurrentTab();
   await updateProgress();
 }
@@ -995,6 +1116,7 @@ async function renderCurrentTab(){
   if(curTab===0)await renderChecklist();
   else if(curTab===1)await renderFacility();
   else if(curTab===2)await renderRepair();
+  else if(curTab===3)await renderClosing();
   else await renderMemo();
 }
 
@@ -1130,6 +1252,208 @@ async function setRepair(idx,field,val){
   await setData(curStore.code,curDate(),d);
 }
 
+// ── 마감보고 ──
+function closingPath(sc,date){ return `closing/${sc}/${date.replace(/-/g,'')}`; }
+function feedbackPath(sc,date){ return `feedback/${sc}/${date.replace(/-/g,'')}`; }
+function targetPath(sc,date){ return `targets/${sc}/${date.replace(/-/g,'')}`; }
+
+async function getClosing(sc,date){ const d=await fbGet(closingPath(sc,date)); return d||{}; }
+async function setClosing(sc,date,d){ await fbSet(closingPath(sc,date),d); }
+async function getTarget(sc,date){ return await fbGet('targets/'+sc+'/'+date.replace(/-/g,'')); }
+async function getFeedback(sc,date){ const d=await fbGet(feedbackPath(sc,date)); return d||null; }
+async function setFeedback(sc,date,d){ await fbSet(feedbackPath(sc,date),d); }
+
+// 사진을 base64로 변환
+function fileToBase64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(file); }); }
+
+async function renderClosing(){
+  // 간부(manager 계정) 또는 master만 접근
+  const chiefAccess = await isChief();
+  if(!chiefAccess){
+    document.getElementById('app-content').innerHTML='<div class="empty-msg" style="margin-top:40px">🔒 간부 계정으로만 접근 가능합니다</div>';
+    return;
+  }
+  const canEdit=isManager(); // manager만 작성 가능, master는 읽기+피드백
+  const cl=await getClosing(curStore.code,curDate());
+  const target=await getTarget(curStore.code,curDate());
+  const fb=await getFeedback(curStore.code,curDate());
+  const salesVal=cl.sales?parseInt(cl.sales):0;
+  const targetVal=target?parseInt(target):0;
+  const achievePct=targetVal>0?Math.min(Math.round(salesVal/targetVal*100),999):0;
+  const achieveColor=achievePct>=100?'#1D9E75':achievePct>=80?'#BA7517':'#A32D2D';
+  const photos=cl.photos||[];
+  const readonly=!canEdit?'readonly disabled':'';
+
+  let photoHtml='';
+  if(photos.length>0){
+    photoHtml=`<div class="photo-grid">${photos.map((p,i)=>`
+      <div class="photo-thumb">
+        <img src="${p}" alt="마감사진${i+1}">
+        ${canEdit?`<button class="photo-thumb-del" onclick="delClosingPhoto(${i})">✕</button>`:''}
+      </div>`).join('')}</div>`;
+  }
+
+  let feedbackHtml='';
+  if(fb){
+    feedbackHtml=`<div class="feedback-card">
+      <div class="feedback-header">💬 관리자 피드백</div>
+      ${fb.photos&&fb.photos.length?`<div class="photo-grid">${fb.photos.map(p=>`<div class="photo-thumb"><img src="${p}"></div>`).join('')}</div>`:''}
+      <div style="font-size:13px;line-height:1.6;white-space:pre-wrap">${fb.content||''}</div>
+      <div class="feedback-meta">작성: ${fb.writer||''} · ${fb.at?fb.at.slice(0,16).replace('T',' '):''}</div>
+    </div>`;
+  }
+
+  document.getElementById('app-content').innerHTML=`
+    <div class="closing-section">
+      <h3>📝 보고자</h3>
+      <div id="reporter-row" style="margin-bottom:4px">
+        ${cl.reporter?`<span style="font-size:13px;font-weight:600">${cl.reporter}</span>`:'<span style="font-size:12px;color:var(--text2)">미선택</span>'}
+      </div>
+    </div>
+    <div class="closing-section">
+      <h3>🎯 목표 매출</h3>
+      <div class="closing-row">
+        <span class="closing-label">목표</span>
+        <span class="closing-val">${targetVal>0?targetVal.toLocaleString()+'원':'미설정'}</span>
+      </div>
+      <div class="closing-row">
+        <span class="closing-label">금일매출</span>
+        <input class="closing-inp" type="number" id="cl-sales" placeholder="매출 입력 (원)" value="${cl.sales||''}" ${readonly} oninput="calcAchieve()" style="max-width:160px">
+        <span style="font-size:13px;font-weight:700;color:${achieveColor}">${achievePct}%</span>
+      </div>
+      ${targetVal>0?`<div class="achieve-bar-wrap"><div class="achieve-bar" style="width:${Math.min(achievePct,100)}%;background:${achieveColor}"></div></div>`:''}
+    </div>
+    <div class="closing-section">
+      <h3>👥 근태</h3>
+      <textarea class="closing-ta" id="cl-attend" rows="3" placeholder="예) 홍길동 14:00 조퇴, 이상없음" ${readonly}>${cl.attend||''}</textarea>
+    </div>
+    <div class="closing-section">
+      <h3>📦 익일 입하수량</h3>
+      <div class="closing-row">
+        <input class="closing-inp" type="number" id="cl-stock" placeholder="수량 입력 (PCS)" value="${cl.stock||''}" ${readonly}>
+        <span style="font-size:13px;color:var(--text2)">PCS</span>
+      </div>
+    </div>
+    <div class="closing-section">
+      <h3>📋 특이사항</h3>
+      <textarea class="closing-ta" id="cl-special" rows="3" placeholder="특이사항 기재" ${readonly}>${cl.special||''}</textarea>
+    </div>
+    <div class="closing-section">
+      <h3>📸 매장 마감현황</h3>
+      ${photoHtml}
+      ${canEdit?`<label class="photo-upload-area">
+        📷 사진 추가 (휴대폰/PC 모두 가능)
+        <input type="file" accept="image/*" multiple style="display:none" onchange="addClosingPhotos(this)">
+      </label>`:''}
+    </div>
+    ${feedbackHtml}
+    ${isMaster()?`<div class="closing-section" style="border-color:var(--accent2)">
+      <h3 style="color:var(--accent2)">💬 피드백 작성 (admin 전용)</h3>
+      <div id="feedback-writer-row" style="margin-bottom:8px"></div>
+      <textarea class="closing-ta" id="fb-content" rows="3" placeholder="피드백 내용">${fb?fb.content||'':''}</textarea>
+      <label class="photo-upload-area" style="margin-top:8px">
+        📷 피드백 사진 첨부
+        <input type="file" accept="image/*" multiple style="display:none" onchange="addFeedbackPhotos(this)">
+      </label>
+      <div class="photo-grid" id="fb-photo-grid">${fb&&fb.photos?fb.photos.map((p,i)=>`<div class="photo-thumb"><img src="${p}"><button class="photo-thumb-del" onclick="delFeedbackPhoto(${i})">✕</button></div>`).join(''):''}</div>
+      <button class="btn-submit" style="margin-top:8px;width:100%" onclick="saveFeedback()">피드백 저장</button>
+    </div>`:''}`;
+
+  // 피드백 작성자 드롭다운
+  if(isMaster()){
+    const adminStaff=await getAdminStaff();
+    const writerSel=adminStaff.length
+      ?`<select id="fb-writer" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <option value="">피드백 작성자 선택</option>
+          ${adminStaff.map(n=>`<option${fb&&fb.writer===n?' selected':''}>${n}</option>`).join('')}
+        </select>`
+      :'<span style="font-size:12px;color:var(--text2)">admin 이름 등록 후 선택 가능 (계정관리 탭)</span>';
+    const row=document.getElementById('feedback-writer-row');
+    if(row) row.innerHTML=writerSel;
+  }
+  // 마감보고 작성자 드롭다운 (간부 목록)
+  const reporterRow=document.getElementById('reporter-row');
+  if(reporterRow&&canEdit){
+    const chiefs=await getChiefs(curStore.code);
+    reporterRow.innerHTML=chiefs.length
+      ?`<select id="cl-reporter" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <option value="">보고자 선택</option>
+          ${chiefs.map(n=>`<option${cl.reporter===n?' selected':''}>${n}</option>`).join('')}
+        </select>`
+      :'<span style="font-size:12px;color:var(--text2)">간부 지정 후 선택 가능 (직원 관리 탭)</span>';
+  }
+}
+
+function calcAchieve(){
+  // 실시간 달성률 계산은 저장 시 처리
+}
+
+let fbPhotos=[];
+async function addClosingPhotos(inp){
+  setSyncB('saving','저장 중...');
+  const cl=await getClosing(curStore.code,curDate());
+  if(!cl.photos)cl.photos=[];
+  for(const file of inp.files){
+    if(cl.photos.length>=6){showToast('사진은 최대 6장');break;}
+    const b64=await fileToBase64(file);
+    cl.photos.push(b64);
+  }
+  await setClosing(curStore.code,curDate(),cl);
+  setSyncB('saved','저장됨 ✓');
+  await renderClosing();
+}
+async function delClosingPhoto(idx){
+  const cl=await getClosing(curStore.code,curDate());
+  if(!cl.photos)return;
+  cl.photos.splice(idx,1);
+  await setClosing(curStore.code,curDate(),cl);
+  await renderClosing();
+}
+
+let tempFbPhotos=[];
+async function addFeedbackPhotos(inp){
+  const fb=await getFeedback(curStore.code,curDate())||{};
+  if(!fb.photos)fb.photos=[];
+  for(const file of inp.files){
+    if(fb.photos.length>=4){showToast('사진은 최대 4장');break;}
+    const b64=await fileToBase64(file);
+    fb.photos.push(b64);
+  }
+  await setFeedback(curStore.code,curDate(),fb);
+  await renderClosing();
+}
+async function delFeedbackPhoto(idx){
+  const fb=await getFeedback(curStore.code,curDate())||{};
+  if(!fb.photos)return;
+  fb.photos.splice(idx,1);
+  await setFeedback(curStore.code,curDate(),fb);
+  await renderClosing();
+}
+async function saveFeedback(){
+  const content=(document.getElementById('fb-content').value||'').trim();
+  const writerEl=document.getElementById('fb-writer');
+  const writer=writerEl?writerEl.value:'';
+  const existing=await getFeedback(curStore.code,curDate())||{};
+  existing.content=content;
+  existing.writer=writer;
+  existing.at=new Date().toISOString();
+  await setFeedback(curStore.code,curDate(),existing);
+  showToast('피드백 저장 완료!');
+  await renderClosing();
+}
+async function saveClosingData(){
+  const cl=await getClosing(curStore.code,curDate());
+  cl.sales=(document.getElementById('cl-sales')||{}).value||cl.sales||'';
+  cl.attend=(document.getElementById('cl-attend')||{}).value||cl.attend||'';
+  cl.stock=(document.getElementById('cl-stock')||{}).value||cl.stock||'';
+  cl.special=(document.getElementById('cl-special')||{}).value||cl.special||'';
+  const rep=document.getElementById('cl-reporter');
+  if(rep&&rep.value) cl.reporter=rep.value;
+  await setClosing(curStore.code,curDate(),cl);
+  setSyncB('saved','저장됨 ✓');
+  showToast('마감보고 저장 완료');
+}
+
 // ── MEMO ──
 async function renderMemo(){
   const d=await getData(curStore.code,curDate());const m=d.memo||{};
@@ -1153,12 +1477,14 @@ function tabSubmitKey(){
   if(curTab===0)return 'submittedCheck';
   if(curTab===1)return 'submittedFac';
   if(curTab===2)return 'submittedRepair';
+  if(curTab===3)return 'submittedClosing';
   return null;
 }
 function tabLabel(){
   if(curTab===0)return '체크시트';
   if(curTab===1)return '시설점검';
   if(curTab===2)return '보수요청';
+  if(curTab===3)return '마감보고';
   return '';
 }
 
@@ -1198,7 +1524,8 @@ function updateSubmitBar(data){
 }
 async function saveNow(){
   setSyncB('saving','저장 중...');
-  await new Promise(r=>setTimeout(r,200));
+  if(curTab===3) await saveClosingData();
+  else{ await new Promise(r=>setTimeout(r,200)); }
   setSyncB('saved','저장됨 ✓');
   showToast('저장되었습니다');
 }
@@ -1449,6 +1776,235 @@ async function admAddSec(){
   hideOverlay(); showToast('"'+secName+'" 분류가 추가됐습니다'); renderHomeBody();
 }
 
+// ── 계정관리 탭 ──
+async function renderAccountsMgmt(body){
+  const adminStaff=await getAdminStaff();
+  // 비밀번호 목록 (Firebase에서)
+  let customPws={};
+  try{ const d=await fbGet('meta/passwords'); if(d)customPws=d; }catch{}
+
+  const storeRows=STORES.map(s=>{
+    const mngId=s.code+'-mng';
+    const staffPw=customPws[s.code]||'1234';
+    const mngPw=customPws[mngId.replace('-','_')]||'manager';
+    return `<div class="acct-item">
+      <div class="acct-info">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="acct-type acct-staff">일반</span>
+          <span class="acct-id">${s.code}</span>
+          <span style="font-size:11px;color:var(--text2)">${s.name}</span>
+        </div>
+        <div class="acct-pw">비밀번호: ${staffPw}</div>
+      </div>
+      <button class="btn-edit-item" onclick="changePw('${s.code}','staff')">변경</button>
+    </div>
+    <div class="acct-item">
+      <div class="acct-info">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="acct-type acct-manager">관리자</span>
+          <span class="acct-id">${mngId}</span>
+          <span style="font-size:11px;color:var(--text2)">${s.name}</span>
+        </div>
+        <div class="acct-pw">비밀번호: ${mngPw}</div>
+      </div>
+      <button class="btn-edit-item" onclick="changePw('${mngId}','manager')">변경</button>
+    </div>`;
+  }).join('');
+
+  const adminStaffHtml=adminStaff.length
+    ?adminStaff.map((n,i)=>`<div class="adm-item">
+        <div class="adm-item-info"><div class="adm-item-name">${n}</div></div>
+        <div class="adm-btns">
+          <button class="btn-edit-item" onclick="editAdminStaff(${i},'${n.replace(/'/g,"\\'")}')">수정</button>
+          <button class="btn-del" onclick="delAdminStaff(${i})">삭제</button>
+        </div>
+      </div>`).join('')
+    :'<div class="adm-item"><span style="font-size:13px;color:var(--text2)">등록된 이름 없음</span></div>';
+
+  body.innerHTML=`
+    <div class="adm-sec">
+      <div class="adm-sec-title">admin 피드백 작성자 이름 관리</div>
+      <div class="adm-card">
+        ${adminStaffHtml}
+        <div class="add-row">
+          <input type="text" id="new-admin-staff" placeholder="이름 입력">
+          <button class="btn-add" onclick="addAdminStaff()">추가</button>
+        </div>
+      </div>
+    </div>
+    <div class="adm-sec">
+      <div class="adm-sec-title">🎯 목표매출 일괄 설정 (엑셀 업로드)</div>
+      <div class="adm-card" style="padding:16px">
+        <div style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:10px;background:var(--inp-bg);padding:10px;border-radius:8px">
+          📋 엑셀 형식:<br>
+          A열: 매장코드 (M0001 등)<br>
+          B열: 일자 (20260530 등)<br>
+          C열: 목표금액 (숫자만)
+        </div>
+        <label class="photo-upload-area" style="margin-bottom:0">
+          📂 엑셀 파일 선택 (.xlsx, .csv)
+          <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="uploadTargetExcel(this)">
+        </label>
+        <div id="excel-result" style="margin-top:8px;font-size:12px;color:var(--ok)"></div>
+      </div>
+    </div>
+    <div class="adm-sec">
+      <div class="adm-sec-title">계정 비밀번호 관리</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;padding:8px 10px;background:var(--inp-bg);border-radius:8px">
+        <span class="acct-type acct-master">마스터</span> admin · 비밀번호: admin1234
+        <button class="btn-edit-item" style="margin-left:8px" onclick="changePw('admin','master')">변경</button>
+      </div>
+      <div class="acct-card">${storeRows}</div>
+    </div>`;
+}
+
+async function changePw(id, role){
+  const newPw=prompt((role==='master'?'[마스터] ':role==='manager'?'[관리자] ':'[일반] ')+id+' 새 비밀번호 입력');
+  if(!newPw||newPw.trim().length<4) return showToast('4자 이상 입력해주세요');
+  const ok=await showConfirm('비밀번호 변경','"'+id+'" 비밀번호를 변경하시겠습니까?','primary','🔑');
+  if(!ok)return;
+  showOverlay('저장 중...');
+  const key=id.replace('-','_');
+  await fbSet('meta/passwords/'+key, newPw.trim());
+  ACCTS[id]=newPw.trim();
+  hideOverlay();
+  showToast('"'+id+'" 비밀번호 변경 완료');
+  renderAccountsMgmt(document.getElementById('home-body'));
+}
+async function addAdminStaff(){
+  const name=(document.getElementById('new-admin-staff').value||'').trim();
+  if(!name)return showToast('이름을 입력해주세요');
+  const list=await getAdminStaff();
+  if(list.includes(name))return showToast('이미 등록됨');
+  list.push(name);
+  await setAdminStaff(list);
+  showToast(name+' 등록 완료');
+  renderAccountsMgmt(document.getElementById('home-body'));
+}
+async function editAdminStaff(idx,oldName){
+  const newName=prompt('이름 수정',oldName);
+  if(!newName||newName.trim()===oldName)return;
+  const list=await getAdminStaff();
+  list[idx]=newName.trim();
+  await setAdminStaff(list);
+  showToast('수정 완료');
+  renderAccountsMgmt(document.getElementById('home-body'));
+}
+async function delAdminStaff(idx){
+  const list=await getAdminStaff();
+  const ok=await showConfirm('삭제','"'+list[idx]+'"을 삭제하시겠습니까?','danger','🗑️');
+  if(!ok)return;
+  list.splice(idx,1);
+  await setAdminStaff(list);
+  showToast('삭제 완료');
+  renderAccountsMgmt(document.getElementById('home-body'));
+}
+
+// ── 목표매출 엑셀 업로드 (SheetJS) ──
+async function uploadTargetExcel(inp){
+  const file=inp.files[0];
+  if(!file)return;
+  const resultEl=document.getElementById('excel-result');
+  resultEl.textContent='처리 중...';
+  try{
+    const XLSX=window.XLSX;
+    if(!XLSX){resultEl.textContent='❌ 엑셀 라이브러리 로딩 중... 잠시 후 재시도';return;}
+    const ab=await file.arrayBuffer();
+    const wb=XLSX.read(ab,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+    let cnt=0,errors=[];
+    for(const row of rows){
+      if(!row||row.length<3)continue;
+      const storeCode=String(row[0]||'').trim().toUpperCase();
+      const dateRaw=String(row[1]||'').trim().replace(/-/g,'');
+      const amount=parseInt(String(row[2]||'').replace(/,/g,''));
+      if(!storeCode.match(/^M\d+$/)||dateRaw.length!==8||isNaN(amount)){errors.push(storeCode+'/'+dateRaw);continue;}
+      const path='targets/'+storeCode+'/'+dateRaw;
+      await fbSet(path,amount);
+      cnt++;
+    }
+    resultEl.style.color='var(--ok)';
+    resultEl.textContent='✅ '+cnt+'건 저장 완료'+(errors.length?' / 오류: '+errors.slice(0,3).join(','):'');
+  }catch(e){
+    resultEl.style.color='var(--danger)';
+    resultEl.textContent='❌ 오류: '+e.message;
+  }
+}
+
+// ── 마감보고 현황 (admin 조회) ──
+async function renderClosingReport(body){
+  body.innerHTML=`<div class="rpt-filter">
+    <div class="rpt-filter-row">
+      <label>날짜</label>
+      <input type="date" id="cr-date" value="${todayStr()}" onchange="loadClosingReport()">
+      <select id="cr-store" onchange="loadClosingReport()">
+        <option value="all">전체 매장</option>
+        ${STORES.map(s=>`<option value="${s.code}">${s.name}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+  <div id="cr-body"><div class="empty-msg">불러오는 중...</div></div>`;
+  await loadClosingReport();
+}
+async function loadClosingReport(){
+  const dateEl=document.getElementById('cr-date');
+  const stEl=document.getElementById('cr-store');
+  if(!dateEl||!stEl)return;
+  const date=dateEl.value;
+  const sf=stEl.value;
+  const body=document.getElementById('cr-body');
+  if(!date){body.innerHTML='<div class="empty-msg">날짜를 선택해주세요</div>';return;}
+  body.innerHTML='<div class="empty-msg">불러오는 중...</div>';
+  const targets=sf==='all'?STORES:STORES.filter(s=>s.code===sf);
+  let html='';
+  for(const s of targets){
+    const cl=await getClosing(s.code,date);
+    const fb=await getFeedback(s.code,date);
+    const target=await getTarget(s.code,date.replace(/-/g,''));
+    const salesVal=cl.sales?parseInt(cl.sales):0;
+    const targetVal=target?parseInt(target):0;
+    const achievePct=targetVal>0?Math.min(Math.round(salesVal/targetVal*100),999):0;
+    const achieveColor=achievePct>=100?'#1D9E75':achievePct>=80?'#BA7517':'#A32D2D';
+    const submitted=cl.submitted||false;
+    const hasData=cl.sales||cl.attend||cl.special||cl.stock;
+    if(!hasData&&sf==='all')continue;
+    html+=`<div class="rpt-card" style="margin-bottom:10px">
+      <div class="rpt-card-top">
+        <div>
+          <div class="rpt-store">${s.name}</div>
+          <div style="font-size:11px;color:var(--text2)">${s.code} · ${cl.reporter||'보고자 미선택'}</div>
+        </div>
+        <div style="text-align:right">
+          ${submitted?'<span class="badge badge-ok">제출완료</span>':'<span class="badge badge-no">미제출</span>'}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:8px">
+        <div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px">
+          <div style="color:var(--text2);margin-bottom:2px">목표매출</div>
+          <div style="font-weight:600">${targetVal>0?targetVal.toLocaleString()+'원':'미설정'}</div>
+        </div>
+        <div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px">
+          <div style="color:var(--text2);margin-bottom:2px">금일매출 <span style="color:${achieveColor};font-weight:700">${achievePct}%</span></div>
+          <div style="font-weight:600">${salesVal>0?salesVal.toLocaleString()+'원':'미입력'}</div>
+        </div>
+        ${cl.attend?`<div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px;grid-column:1/-1"><div style="color:var(--text2);margin-bottom:2px">근태</div><div>${cl.attend}</div></div>`:''}
+        ${cl.stock?`<div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px"><div style="color:var(--text2);margin-bottom:2px">익일입하</div><div style="font-weight:600">${cl.stock} PCS</div></div>`:''}
+        ${cl.special?`<div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px;grid-column:1/-1"><div style="color:var(--text2);margin-bottom:2px">특이사항</div><div>${cl.special}</div></div>`:''}
+      </div>
+      ${cl.photos&&cl.photos.length?`<div class="photo-grid" style="grid-template-columns:repeat(3,1fr)">${cl.photos.map(p=>`<div class="photo-thumb"><img src="${p}"></div>`).join('')}</div>`:''}
+      ${fb?`<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+        <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:4px">💬 피드백: ${fb.writer||''}</div>
+        <div style="font-size:12px">${fb.content||''}</div>
+        ${fb.photos&&fb.photos.length?`<div class="photo-grid" style="margin-top:6px;grid-template-columns:repeat(3,1fr)">${fb.photos.map(p=>`<div class="photo-thumb"><img src="${p}"></div>`).join('')}</div>`:''}
+      </div>`:''}
+      <button class="btn-edit-item" style="width:100%;margin-top:8px;padding:8px" onclick="enterStore('${s.code}')">매장 체크리스트 보기</button>
+    </div>`;
+  }
+  body.innerHTML=body.innerHTML.replace('<div class="empty-msg">불러오는 중...</div>','');
+  document.getElementById('cr-body').innerHTML=html||(sf==='all'?'<div class="empty-msg">오늘 제출된 마감보고가 없습니다</div>':'<div class="empty-msg">해당 날짜 마감보고 없음</div>');
+}
+
 // 전역 함수 노출
 window.doLogin=doLogin;window.doLogout=doLogout;
 window.switchHTab=switchHTab;window.enterStore=enterStore;
@@ -1471,6 +2027,16 @@ window.setSt=setSt;window.setStaffF=setStaffF;
 window.toggleFac=toggleFac;window.setFac=setFac;
 window.setRepair=setRepair;window.setMemo=setMemo;
 window.saveNow=saveNow;window.submitCurrent=submitCurrent;window.unlockCurrent=unlockCurrent;
+window.renderAccountsMgmt=renderAccountsMgmt;
+window.changePw=changePw;
+window.addAdminStaff=addAdminStaff;window.editAdminStaff=editAdminStaff;window.delAdminStaff=delAdminStaff;
+window.uploadTargetExcel=uploadTargetExcel;
+window.renderClosingReport=renderClosingReport;window.loadClosingReport=loadClosingReport;
+window.saveClosingData=saveClosingData;
+window.addClosingPhotos=addClosingPhotos;window.delClosingPhoto=delClosingPhoto;
+window.addFeedbackPhotos=addFeedbackPhotos;window.delFeedbackPhoto=delFeedbackPhoto;
+window.saveFeedback=saveFeedback;
+window.toggleChief=toggleChief;
 // adminStore는 setAdminStore() 통해 관리
 </script>
 </body>
