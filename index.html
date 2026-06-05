@@ -303,6 +303,18 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .sec-edit-row-btns{display:flex;gap:6px}
 /* 대분류 추가 */
 .add-sec-row{padding:12px 14px;background:var(--inp-bg);border:1px solid var(--border);border-radius:12px;margin-bottom:8px}
+.btn-all-stores{background:linear-gradient(135deg,#185FA5,#1D9E75);border:none;color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.bulk-banner{background:linear-gradient(135deg,#1a1a2e,#185FA5);border-radius:12px;padding:14px;margin-bottom:12px;color:#fff}
+.bulk-banner h3{font-size:14px;font-weight:700;margin-bottom:4px}
+.bulk-banner p{font-size:11px;color:rgba(255,255,255,0.65);line-height:1.6}
+.bulk-store-chips{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0}
+.bulk-chip{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid rgba(255,255,255,0.3);color:#fff;background:rgba(255,255,255,0.1);transition:all .15s}
+.bulk-chip.selected{background:#fff;color:#1a1a2e;border-color:#fff}
+.bulk-mode-card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.bulk-mode-title{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.bulk-result{padding:10px 12px;border-radius:8px;font-size:12px;margin-top:8px;line-height:1.7}
+.bulk-result.ok{background:#e8f5e9;color:#2e7d32}
+.bulk-result.err{background:#ffebee;color:#c62828}
 .add-sec-row label{font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px}
 .add-sec-row input{width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--card);color:var(--text);outline:none;margin-bottom:6px}
 </style>
@@ -741,8 +753,9 @@ async function renderAdmin(body){
     <select class="admin-store-sel" onchange="setAdminStore(this.value)">
       ${STORES.map(s=>`<option value="${s.code}"${s.code===adminStore?' selected':''}>${s.name} (${s.code})</option>`).join('')}
     </select>
-    <div style="font-size:12px;color:var(--accent2);font-weight:600;padding:8px 12px;background:var(--inp-bg);border-radius:8px;border:1px solid var(--border)">
-      📋 현재 편집 중: <strong>${curStoreName}</strong> (${adminStore})
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--inp-bg);border-radius:8px;border:1px solid var(--border)">
+      <span style="font-size:12px;color:var(--accent2);font-weight:600">📋 현재 편집 중: <strong>${curStoreName}</strong> (${adminStore})</span>
+      <button class="btn-all-stores" onclick="renderBulkPanel(document.getElementById('home-body'))">🏪 전체 매장 일괄 관리</button>
     </div>
   </div>`;
 
@@ -848,6 +861,307 @@ async function renderAdmin(body){
       </div>
     </div>`:'';
   body.innerHTML=sel+clH+'</div>'+hiddenSection;
+}
+
+// ── 전체매장 일괄 관리 ──
+let bulkSelectedStores = []; // 선택된 매장 코드 목록
+
+function toggleBulkChip(code){
+  if(bulkSelectedStores.includes(code)){
+    bulkSelectedStores=bulkSelectedStores.filter(c=>c!==code);
+  } else {
+    bulkSelectedStores.push(code);
+  }
+  document.querySelectorAll('.bulk-chip').forEach(el=>{
+    el.classList.toggle('selected', bulkSelectedStores.includes(el.dataset.code));
+  });
+  document.querySelectorAll('.bulk-sel-count').forEach(el=>{
+    el.textContent=bulkSelectedStores.length+'개 매장 선택됨';
+  });
+}
+
+async function renderBulkPanel(body){
+  bulkSelectedStores=[...STORES.map(s=>s.code)]; // 기본: 전체 선택
+
+  // 기준 매장 cfg로 섹션/항목 목록 가져오기
+  const cfg=await getConfig(adminStore);
+  const sections=Object.keys(cfg.checklist);
+
+  const chipHtml=STORES.map(s=>`
+    <span class="bulk-chip selected" data-code="${s.code}" onclick="toggleBulkChip('${s.code}')" title="${s.name}">
+      ${s.name}
+    </span>`).join('');
+
+  const secOpts=sections.map(s=>`<option value="${s}">${s}</option>`).join('');
+
+  // 섹션별 항목 옵션 (선택한 섹션의 항목 목록 동적 렌더)
+  body.innerHTML=`
+    <button class="btn-save" style="margin-bottom:12px" onclick="renderAdmin(document.getElementById('home-body'))">← 매장별 관리로 돌아가기</button>
+
+    <div class="bulk-banner">
+      <h3>🏪 전체 매장 일괄 관리</h3>
+      <p>선택한 매장 전체에 항목 추가·수정·시간 설정을 한번에 적용합니다<br>
+      기준 매장: <strong>${STORES.find(s=>s.code===adminStore).name}</strong> (${adminStore})의 분류 목록을 참고합니다</p>
+      <div class="bulk-store-chips">${chipHtml}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="bulk-sel-count" style="font-size:12px;color:rgba(255,255,255,0.7)">${STORES.length}개 매장 선택됨</span>
+        <div style="display:flex;gap:6px">
+          <button class="bulk-chip selected" onclick="bulkSelectAll(true)">전체 선택</button>
+          <button class="bulk-chip" onclick="bulkSelectAll(false)">전체 해제</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 항목 추가 -->
+    <div class="bulk-mode-card">
+      <div class="bulk-mode-title">➕ 항목 추가 (선택 매장 전체에)</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <select id="bulk-add-sec" style="border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <option value="">대분류 선택</option>
+          ${secOpts}
+          <option value="__new__">+ 새 대분류 만들기</option>
+        </select>
+        <input type="text" id="bulk-new-sec-name" placeholder="새 대분류명 (위에서 '새 대분류 만들기' 선택 시)" style="border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none;display:none">
+        <div style="display:flex;gap:6px">
+          <input type="text" id="bulk-add-area" placeholder="영역" style="flex:0.8;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <input type="text" id="bulk-add-name" placeholder="항목명" style="flex:1.5;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+        </div>
+        <input type="text" id="bulk-add-desc" placeholder="항목설명 (선택)" style="border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+        <div style="display:flex;gap:6px;align-items:center">
+          <label style="font-size:12px;color:var(--text2)">마감시간</label>
+          <input type="time" id="bulk-add-time" style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <span style="font-size:11px;color:var(--text2)">(미입력 시 종일)</span>
+        </div>
+        <button class="btn-submit" onclick="bulkAddItem()" style="margin-top:4px">선택 매장 전체에 항목 추가</button>
+        <div id="bulk-add-result"></div>
+      </div>
+    </div>
+
+    <!-- 항목 수정 (기존 항목의 이름/설명/시간 일괄 변경) -->
+    <div class="bulk-mode-card">
+      <div class="bulk-mode-title">✏️ 기존 항목 일괄 수정 (선택 매장 전체에)</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">기준 매장(${STORES.find(s=>s.code===adminStore).name})의 항목 선택 → 항목명/설명/시간 변경 → 전체 적용</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <select id="bulk-edit-sec" onchange="loadBulkEditItems()" style="border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <option value="">대분류 선택</option>
+          ${secOpts}
+        </select>
+        <select id="bulk-edit-item" style="border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <option value="">항목 선택 (대분류 먼저 선택)</option>
+        </select>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="bulk-edit-area" placeholder="변경할 영역명" style="flex:0.8;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <input type="text" id="bulk-edit-name" placeholder="변경할 항목명" style="flex:1.5;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+        </div>
+        <input type="text" id="bulk-edit-desc" placeholder="변경할 항목설명 (선택)" style="border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+        <div style="display:flex;gap:6px;align-items:center">
+          <label style="font-size:12px;color:var(--text2)">마감시간</label>
+          <input type="time" id="bulk-edit-time" style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <button class="btn-cancel-edit" onclick="document.getElementById('bulk-edit-time').value=''">시간 삭제</button>
+        </div>
+        <button class="btn-submit" onclick="bulkUpdateItem()" style="margin-top:4px;background:var(--accent2)">선택 매장 전체에 항목 수정 적용</button>
+        <div id="bulk-edit-result"></div>
+      </div>
+    </div>
+
+    <!-- 마감시간만 일괄 설정 -->
+    <div class="bulk-mode-card">
+      <div class="bulk-mode-title">⏰ 마감시간 일괄 설정 (선택 매장 전체에)</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">기준 매장의 항목을 선택하고 마감시간만 빠르게 일괄 적용합니다</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <select id="bulk-time-sec" onchange="loadBulkTimeItems()" style="border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <option value="">대분류 선택</option>
+          ${secOpts}
+        </select>
+        <select id="bulk-time-item" style="border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
+          <option value="">항목 선택</option>
+        </select>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label style="font-size:12px;color:var(--text2)">마감시간</label>
+          <input type="time" id="bulk-time-val" style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none;flex:1">
+          <button class="btn-cancel-edit" onclick="document.getElementById('bulk-time-val').value=''">시간 제거</button>
+        </div>
+        <button class="btn-submit" onclick="bulkUpdateTime()" style="margin-top:4px;background:#8B5CF6">선택 매장 전체에 시간 적용</button>
+        <div id="bulk-time-result"></div>
+      </div>
+    </div>`;
+
+  // 대분류 선택 시 새 대분류 입력칸 토글
+  document.getElementById('bulk-add-sec').addEventListener('change',function(){
+    const inp=document.getElementById('bulk-new-sec-name');
+    inp.style.display=this.value==='__new__'?'block':'none';
+  });
+}
+
+function bulkSelectAll(all){
+  bulkSelectedStores=all?[...STORES.map(s=>s.code)]:[];
+  document.querySelectorAll('.bulk-chip[data-code]').forEach(el=>{
+    el.classList.toggle('selected',all);
+  });
+  document.querySelectorAll('.bulk-sel-count').forEach(el=>{
+    el.textContent=bulkSelectedStores.length+'개 매장 선택됨';
+  });
+}
+window.bulkSelectAll=bulkSelectAll;
+
+async function loadBulkEditItems(){
+  const sec=document.getElementById('bulk-edit-sec').value;
+  const sel=document.getElementById('bulk-edit-item');
+  sel.innerHTML='<option value="">항목 선택</option>';
+  if(!sec)return;
+  const cfg=await getConfig(adminStore);
+  const items=cfg.checklist[sec]||[];
+  items.forEach((it,i)=>{
+    const opt=document.createElement('option');
+    opt.value=i;
+    opt.textContent=`[${it.a}] ${it.n}${it.t?' ⏰'+it.t:''}`;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change',async function(){
+    if(!this.value&&this.value!=='0')return;
+    const cfg2=await getConfig(adminStore);
+    const it=cfg2.checklist[sec][parseInt(this.value)];
+    if(!it)return;
+    document.getElementById('bulk-edit-area').value=it.a||'';
+    document.getElementById('bulk-edit-name').value=it.n||'';
+    document.getElementById('bulk-edit-desc').value=it.d||'';
+    document.getElementById('bulk-edit-time').value=it.t||'';
+  },{once:false});
+}
+window.loadBulkEditItems=loadBulkEditItems;
+
+async function loadBulkTimeItems(){
+  const sec=document.getElementById('bulk-time-sec').value;
+  const sel=document.getElementById('bulk-time-item');
+  sel.innerHTML='<option value="">항목 선택</option>';
+  if(!sec)return;
+  const cfg=await getConfig(adminStore);
+  (cfg.checklist[sec]||[]).forEach((it,i)=>{
+    const opt=document.createElement('option');
+    opt.value=i;
+    opt.textContent=`[${it.a}] ${it.n}${it.t?' (현재: ⏰'+it.t+')':''}`;
+    sel.appendChild(opt);
+  });
+}
+window.loadBulkTimeItems=loadBulkTimeItems;
+
+async function bulkAddItem(){
+  if(!bulkSelectedStores.length)return showToast('매장을 하나 이상 선택해주세요');
+  let sec=document.getElementById('bulk-add-sec').value;
+  const newSecName=(document.getElementById('bulk-new-sec-name').value||'').trim();
+  if(sec==='__new__'){
+    if(!newSecName)return showToast('새 대분류명을 입력해주세요');
+    sec=newSecName;
+  }
+  if(!sec)return showToast('대분류를 선택해주세요');
+  const a=(document.getElementById('bulk-add-area').value||'').trim();
+  const n=(document.getElementById('bulk-add-name').value||'').trim();
+  const d=(document.getElementById('bulk-add-desc').value||'').trim();
+  const t=document.getElementById('bulk-add-time').value||'';
+  if(!n)return showToast('항목명을 입력해주세요');
+  const ok=await showConfirm('일괄 추가',
+    '"'+n+'" 항목을 '+bulkSelectedStores.length+'개 매장에 추가하시겠습니까?',
+    'primary','➕');
+  if(!ok)return;
+  showOverlay('전체 매장 적용 중...');
+  let successCnt=0,failCnt=0;
+  for(const code of bulkSelectedStores){
+    try{
+      const cfg=await getConfig(code);
+      if(!cfg.checklist[sec])cfg.checklist[sec]=[];
+      // 이미 같은 항목명이 있으면 스킵
+      const already=cfg.checklist[sec].some(it=>it.n===n);
+      if(!already){
+        const newItem={a:a||'기타',n};
+        if(t)newItem.t=t;
+        if(d)newItem.d=d;
+        cfg.checklist[sec].push(newItem);
+        await setConfig(code,cfg);
+      }
+      successCnt++;
+    }catch(e){failCnt++;}
+  }
+  hideOverlay();
+  const res=document.getElementById('bulk-add-result');
+  res.className='bulk-result ok';
+  res.textContent='✅ '+successCnt+'개 매장 적용 완료'+(failCnt?' / '+failCnt+'개 오류':'');
+  showToast('"'+n+'" 항목 일괄 추가 완료!');
+}
+
+async function bulkUpdateItem(){
+  if(!bulkSelectedStores.length)return showToast('매장을 하나 이상 선택해주세요');
+  const sec=document.getElementById('bulk-edit-sec').value;
+  const idx=document.getElementById('bulk-edit-item').value;
+  if(!sec)return showToast('대분류를 선택해주세요');
+  if(idx===''||idx===null)return showToast('항목을 선택해주세요');
+  const a=(document.getElementById('bulk-edit-area').value||'').trim();
+  const n=(document.getElementById('bulk-edit-name').value||'').trim();
+  const d=(document.getElementById('bulk-edit-desc').value||'').trim();
+  const t=document.getElementById('bulk-edit-time').value||'';
+  if(!n)return showToast('변경할 항목명을 입력해주세요');
+  // 기준 매장에서 원본 항목명 가져오기
+  const baseCfg=await getConfig(adminStore);
+  const baseItem=baseCfg.checklist[sec]&&baseCfg.checklist[sec][parseInt(idx)];
+  if(!baseItem)return showToast('기준 항목을 찾을 수 없습니다');
+  const origName=baseItem.n;
+  const ok=await showConfirm('일괄 수정','"'+origName+'" → "'+n+'"\n'+bulkSelectedStores.length+'개 매장에 적용하시겠습니까?','primary','✏️');
+  if(!ok)return;
+  showOverlay('전체 매장 적용 중...');
+  let successCnt=0,failCnt=0,skipCnt=0;
+  for(const code of bulkSelectedStores){
+    try{
+      const cfg=await getConfig(code);
+      if(!cfg.checklist[sec]){skipCnt++;continue;}
+      // 해당 매장에서 같은 항목명 찾기
+      const itemIdx=cfg.checklist[sec].findIndex(it=>it.n===origName);
+      if(itemIdx===-1){skipCnt++;continue;}
+      const updItem={a:a||'기타',n};
+      if(t)updItem.t=t; else delete updItem.t;
+      if(d)updItem.d=d; else delete updItem.d;
+      cfg.checklist[sec][itemIdx]=updItem;
+      await setConfig(code,cfg);
+      successCnt++;
+    }catch(e){failCnt++;}
+  }
+  hideOverlay();
+  const res=document.getElementById('bulk-edit-result');
+  res.className='bulk-result ok';
+  res.textContent='✅ '+successCnt+'개 매장 적용'+(skipCnt?' / '+skipCnt+'개 항목 없어 스킵':'')+(failCnt?' / '+failCnt+'개 오류':'');
+  showToast('일괄 수정 완료!');
+}
+
+async function bulkUpdateTime(){
+  if(!bulkSelectedStores.length)return showToast('매장을 하나 이상 선택해주세요');
+  const sec=document.getElementById('bulk-time-sec').value;
+  const idx=document.getElementById('bulk-time-item').value;
+  if(!sec)return showToast('대분류를 선택해주세요');
+  if(idx===''||idx===null)return showToast('항목을 선택해주세요');
+  const t=document.getElementById('bulk-time-val').value||'';
+  const baseCfg=await getConfig(adminStore);
+  const baseItem=baseCfg.checklist[sec]&&baseCfg.checklist[sec][parseInt(idx)];
+  if(!baseItem)return showToast('기준 항목을 찾을 수 없습니다');
+  const origName=baseItem.n;
+  const ok=await showConfirm('시간 일괄 설정','"'+origName+'" 항목 · 마감시간: '+(t||'제거')+'\n'+bulkSelectedStores.length+'개 매장에 적용하시겠습니까?','primary','⏰');
+  if(!ok)return;
+  showOverlay('전체 매장 적용 중...');
+  let successCnt=0,failCnt=0,skipCnt=0;
+  for(const code of bulkSelectedStores){
+    try{
+      const cfg=await getConfig(code);
+      if(!cfg.checklist[sec]){skipCnt++;continue;}
+      const itemIdx=cfg.checklist[sec].findIndex(it=>it.n===origName);
+      if(itemIdx===-1){skipCnt++;continue;}
+      if(t)cfg.checklist[sec][itemIdx].t=t;
+      else delete cfg.checklist[sec][itemIdx].t;
+      await setConfig(code,cfg);
+      successCnt++;
+    }catch(e){failCnt++;}
+  }
+  hideOverlay();
+  const res=document.getElementById('bulk-time-result');
+  res.className='bulk-result ok';
+  res.textContent='✅ '+successCnt+'개 매장 적용'+(skipCnt?' / '+skipCnt+'개 스킵':'')+(failCnt?' / '+failCnt+'개 오류':'');
+  showToast('마감시간 일괄 설정 완료!');
 }
 
 // ── 펼치기/접기 ──
@@ -2285,6 +2599,12 @@ window.switchHTab=switchHTab;window.enterStore=enterStore;
 window.admDelStaff=admDelStaff;window.admAddStaff=admAddStaff;window.admEditStaff=admEditStaff;window.renderStaffAll=renderStaffAll;
 window.admDelItem=admDelItem;window.admAddItem=admAddItem;window.admSaveEdit=admSaveEdit;
 window.admToggleHide=admToggleHide;
+window.renderBulkPanel=renderBulkPanel;
+window.bulkAddItem=bulkAddItem;
+window.bulkAddSec=bulkAddSec;
+window.bulkUpdateTime=bulkUpdateTime;
+window.bulkUpdateItem=bulkUpdateItem;
+window.toggleBulkChip=toggleBulkChip;
 window.renderStoresManage=renderStoresManage;
 window.admAddStore=admAddStore;window.admSaveStore=admSaveStore;window.admDelStore=admDelStore;
 window.showStoreEditRow=showStoreEditRow;window.hideStoreEditRow=hideStoreEditRow;
