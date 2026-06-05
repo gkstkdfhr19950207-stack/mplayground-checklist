@@ -315,6 +315,15 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .bulk-result{padding:10px 12px;border-radius:8px;font-size:12px;margin-top:8px;line-height:1.7}
 .bulk-result.ok{background:#e8f5e9;color:#2e7d32}
 .bulk-result.err{background:#ffebee;color:#c62828}
+.bulk-item-list{border:1px solid var(--border);border-radius:8px;max-height:220px;overflow-y:auto;background:var(--card)}
+.bulk-item-check{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.bulk-item-check:last-child{border-bottom:none}
+.bulk-item-check:active{background:var(--inp-bg)}
+.bulk-item-check input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--accent2);flex-shrink:0}
+.bulk-item-check label{font-size:13px;cursor:pointer;flex:1;line-height:1.4}
+.bulk-item-check .item-time{font-size:11px;color:var(--text2);white-space:nowrap}
+.bulk-check-all-row{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--inp-bg);border-radius:8px;margin-bottom:4px}
+.bulk-check-all-row span{font-size:12px;color:var(--text2)}
 .add-sec-row label{font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px}
 .add-sec-row input{width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--card);color:var(--text);outline:none;margin-bottom:6px}
 </style>
@@ -973,9 +982,16 @@ async function renderBulkPanel(body){
           <option value="">대분류 선택</option>
           ${secOpts}
         </select>
-        <select id="bulk-time-item" style="border:1px solid var(--border);border-radius:8px;padding:8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none">
-          <option value="">항목 선택</option>
-        </select>
+        <div class="bulk-check-all-row">
+          <span id="bulk-time-sel-count">대분류를 먼저 선택해주세요</span>
+          <div style="display:flex;gap:6px">
+            <button class="bulk-chip" style="color:var(--text2)" onclick="bulkTimeSelectAll(true)">전체선택</button>
+            <button class="bulk-chip" style="color:var(--text2)" onclick="bulkTimeSelectAll(false)">전체해제</button>
+          </div>
+        </div>
+        <div class="bulk-item-list" id="bulk-time-item-list">
+          <div style="padding:12px;text-align:center;color:var(--text2);font-size:13px">대분류를 선택하면 항목이 표시됩니다</div>
+        </div>
         <div style="display:flex;gap:6px;align-items:center">
           <label style="font-size:12px;color:var(--text2)">마감시간</label>
           <input type="time" id="bulk-time-val" style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none;flex:1">
@@ -1032,17 +1048,45 @@ window.loadBulkEditItems=loadBulkEditItems;
 
 async function loadBulkTimeItems(){
   const sec=document.getElementById('bulk-time-sec').value;
-  const sel=document.getElementById('bulk-time-item');
-  sel.innerHTML='<option value="">항목 선택</option>';
-  if(!sec)return;
+  const listEl=document.getElementById('bulk-time-item-list');
+  const countEl=document.getElementById('bulk-time-sel-count');
+  listEl.innerHTML='<div style="padding:12px;text-align:center;color:var(--text2);font-size:13px">불러오는 중...</div>';
+  if(!sec){
+    listEl.innerHTML='<div style="padding:12px;text-align:center;color:var(--text2);font-size:13px">대분류를 선택하면 항목이 표시됩니다</div>';
+    countEl.textContent='대분류를 먼저 선택해주세요';
+    return;
+  }
   const cfg=await getConfig(adminStore);
-  (cfg.checklist[sec]||[]).forEach((it,i)=>{
-    const opt=document.createElement('option');
-    opt.value=i;
-    opt.textContent=`[${it.a}] ${it.n}${it.t?' (현재: ⏰'+it.t+')':''}`;
-    sel.appendChild(opt);
-  });
+  const items=cfg.checklist[sec]||[];
+  if(!items.length){
+    listEl.innerHTML='<div style="padding:12px;text-align:center;color:var(--text2);font-size:13px">항목이 없습니다</div>';
+    countEl.textContent='항목 없음';
+    return;
+  }
+  listEl.innerHTML=items.map((it,i)=>`
+    <div class="bulk-item-check" onclick="toggleBulkTimeItem(${i})">
+      <input type="checkbox" id="btc-${i}" value="${i}" checked onchange="updateBulkTimeCount()">
+      <label for="btc-${i}">[${it.a}] ${it.n}${it.d?'<br><span style="font-size:10px;color:var(--text2)">📌 '+it.d+'</span>':''}</label>
+      <span class="item-time">${it.t?'⏰ '+it.t:'-'}</span>
+    </div>`).join('');
+  updateBulkTimeCount();
 }
+function toggleBulkTimeItem(i){
+  const cb=document.getElementById('btc-'+i);
+  if(cb){cb.checked=!cb.checked;updateBulkTimeCount();}
+}
+function updateBulkTimeCount(){
+  const checked=document.querySelectorAll('#bulk-time-item-list input[type=checkbox]:checked').length;
+  const total=document.querySelectorAll('#bulk-time-item-list input[type=checkbox]').length;
+  const el=document.getElementById('bulk-time-sel-count');
+  if(el)el.textContent=checked+' / '+total+' 항목 선택됨';
+}
+function bulkTimeSelectAll(all){
+  document.querySelectorAll('#bulk-time-item-list input[type=checkbox]').forEach(cb=>cb.checked=all);
+  updateBulkTimeCount();
+}
+window.bulkTimeSelectAll=bulkTimeSelectAll;
+window.toggleBulkTimeItem=toggleBulkTimeItem;
 window.loadBulkTimeItems=loadBulkTimeItems;
 
 async function bulkAddItem(){
@@ -1133,35 +1177,48 @@ async function bulkUpdateItem(){
 async function bulkUpdateTime(){
   if(!bulkSelectedStores.length)return showToast('매장을 하나 이상 선택해주세요');
   const sec=document.getElementById('bulk-time-sec').value;
-  const idx=document.getElementById('bulk-time-item').value;
   if(!sec)return showToast('대분류를 선택해주세요');
-  if(idx===''||idx===null)return showToast('항목을 선택해주세요');
+  // 선택된 체크박스 항목들 수집
+  const checkedBoxes=[...document.querySelectorAll('#bulk-time-item-list input[type=checkbox]:checked')];
+  if(!checkedBoxes.length)return showToast('항목을 하나 이상 선택해주세요');
   const t=document.getElementById('bulk-time-val').value||'';
+  // 선택 항목들의 원본 이름 수집 (기준 매장 기준)
   const baseCfg=await getConfig(adminStore);
-  const baseItem=baseCfg.checklist[sec]&&baseCfg.checklist[sec][parseInt(idx)];
-  if(!baseItem)return showToast('기준 항목을 찾을 수 없습니다');
-  const origName=baseItem.n;
-  const ok=await showConfirm('시간 일괄 설정','"'+origName+'" 항목 · 마감시간: '+(t||'제거')+'\n'+bulkSelectedStores.length+'개 매장에 적용하시겠습니까?','primary','⏰');
+  const baseItems=baseCfg.checklist[sec]||[];
+  const selectedNames=checkedBoxes.map(cb=>{
+    const it=baseItems[parseInt(cb.value)];
+    return it?it.n:null;
+  }).filter(Boolean);
+  if(!selectedNames.length)return showToast('유효한 항목이 없습니다');
+  const ok=await showConfirm('시간 일괄 설정',
+    selectedNames.length+'개 항목 · 마감시간: '+(t||'제거')+'\n'+bulkSelectedStores.length+'개 매장에 적용하시겠습니까?',
+    'primary','⏰');
   if(!ok)return;
   showOverlay('전체 매장 적용 중...');
   let successCnt=0,failCnt=0,skipCnt=0;
   for(const code of bulkSelectedStores){
     try{
       const cfg=await getConfig(code);
-      if(!cfg.checklist[sec]){skipCnt++;continue;}
-      const itemIdx=cfg.checklist[sec].findIndex(it=>it.n===origName);
-      if(itemIdx===-1){skipCnt++;continue;}
-      if(t)cfg.checklist[sec][itemIdx].t=t;
-      else delete cfg.checklist[sec][itemIdx].t;
-      await setConfig(code,cfg);
-      successCnt++;
+      if(!cfg.checklist[sec]){skipCnt+=selectedNames.length;continue;}
+      let changed=false;
+      for(const origName of selectedNames){
+        const itemIdx=cfg.checklist[sec].findIndex(it=>it.n===origName);
+        if(itemIdx===-1){skipCnt++;continue;}
+        if(t)cfg.checklist[sec][itemIdx].t=t;
+        else delete cfg.checklist[sec][itemIdx].t;
+        changed=true;
+        successCnt++;
+      }
+      if(changed)await setConfig(code,cfg);
     }catch(e){failCnt++;}
   }
   hideOverlay();
   const res=document.getElementById('bulk-time-result');
   res.className='bulk-result ok';
-  res.textContent='✅ '+successCnt+'개 매장 적용'+(skipCnt?' / '+skipCnt+'개 스킵':'')+(failCnt?' / '+failCnt+'개 오류':'');
+  res.textContent='✅ '+successCnt+'건 적용'+(skipCnt?' / '+skipCnt+'건 스킵':'')+(failCnt?' / '+failCnt+'건 오류':'');
   showToast('마감시간 일괄 설정 완료!');
+  // 리스트 새로고침 (시간 업데이트 반영)
+  await loadBulkTimeItems();
 }
 
 // ── 펼치기/접기 ──
