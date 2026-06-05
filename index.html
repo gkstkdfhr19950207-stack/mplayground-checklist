@@ -113,6 +113,18 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 
 /* CHECK ITEM */
 .ci{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px}
+.ci.expired{background:#fff5f5}
+@media(prefers-color-scheme:dark){.ci.expired{background:#2a1515}}
+.deadline-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap;margin-top:3px}
+.deadline-badge.ok{background:#e8f5e9;color:#2e7d32}
+.deadline-badge.warn{background:#fff3e0;color:#e65100}
+.deadline-badge.over{background:#ffebee;color:#c62828}
+.deadline-badge.none{background:var(--inp-bg);color:var(--text2)}
+.sort-bar{background:var(--card);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:6px;flex-shrink:0;overflow-x:auto}
+.sort-bar::-webkit-scrollbar{display:none}
+.sort-btn{border:1px solid var(--border);background:var(--inp-bg);border-radius:20px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--text2);white-space:nowrap;transition:all .15s}
+.sort-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.time-input{border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:11px;width:72px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none}
 .ci:last-child{border-bottom:none}
 .ci-num{font-size:11px;color:var(--text2);min-width:16px;padding-top:2px}
 .ci-info{flex:1}
@@ -346,6 +358,13 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <input type="date" id="cur-date" onchange="onDateChange()">
     <div class="prog-pill" id="prog-pill">0%</div>
   </div>
+  <div class="sort-bar" id="sort-bar" style="display:none">
+    <span style="font-size:11px;color:var(--text2);white-space:nowrap">정렬:</span>
+    <button class="sort-btn active" id="sort-default" onclick="setSort('default')">분류순</button>
+    <button class="sort-btn" id="sort-asc" onclick="setSort('asc')">⏰ 마감 빠른순</button>
+    <button class="sort-btn" id="sort-desc" onclick="setSort('desc')">⏰ 마감 느린순</button>
+    <button class="sort-btn" id="sort-undone" onclick="setSort('undone')">❗미완료 우선</button>
+  </div>
   <div class="tab-bar">
     <button class="tb active" onclick="switchTab(0)">📋 체크시트</button>
     <button class="tb" onclick="switchTab(1)">🔧 시설점검</button>
@@ -517,6 +536,7 @@ const DEF_FAC={
 // ── 상태 ──
 let curUser=null, curStore=null, curTab=0, homeTab='stores', adminStore=STORES[0].code;
 let curListener=null, saveTimer=null;
+let checklistSort='default'; // 'default'|'asc'|'desc'|'undone'
 
 // ── Firebase CRUD ──
 async function fbGet(path){
@@ -742,18 +762,21 @@ async function renderAdmin(body){
         <span class="drag-handle" title="길게 눌러 순서 변경">⠿</span>
         <div class="adm-item-info">
           <div class="adm-item-area">${it.a}</div>
-          <div class="adm-item-name">${it.n}</div>
+          <div class="adm-item-name">${it.n}${it.t?`<span class="deadline-badge ok" style="margin-left:6px">⏰ ${it.t}</span>`:''}</div>
         </div>
         <div class="adm-btns">
           <button class="btn-edit-item" onclick="showEditRow('${sec}',${i})">수정</button>
           <button class="btn-del" onclick="admDelItem('${sec}',${i})">삭제</button>
         </div>
       </div>
-      <div class="edit-inline-row" id="edit-row-${eid}-${i}" style="display:none">
-        <input type="text" id="edit-area-${eid}-${i}" placeholder="영역" value="${it.a}" style="flex:0.8">
-        <input type="text" id="edit-name-${eid}-${i}" placeholder="항목명" value="${it.n.replace(/"/g,'&quot;')}" style="flex:1.5">
-        <button class="btn-save-edit" onclick="admSaveEdit('${sec}',${i})">저장</button>
-        <button class="btn-cancel-edit" onclick="hideEditRow('${sec}',${i})">✕</button>
+      <div class="edit-inline-row" id="edit-row-${eid}-${i}" style="display:none;flex-wrap:wrap">
+        <input type="text" id="edit-area-${eid}-${i}" placeholder="영역" value="${it.a}" style="flex:0.7">
+        <input type="text" id="edit-name-${eid}-${i}" placeholder="항목명" value="${it.n.replace(/"/g,'&quot;')}" style="flex:1.4">
+        <input type="time" id="edit-time-${eid}-${i}" class="time-input" value="${it.t||''}" title="마감시간 (비워두면 종일)">
+        <div style="display:flex;gap:4px;width:100%;margin-top:4px">
+          <button class="btn-save-edit" style="flex:1" onclick="admSaveEdit('${sec}',${i})">저장</button>
+          <button class="btn-cancel-edit" onclick="hideEditRow('${sec}',${i})">취소</button>
+        </div>
       </div>`).join('');
 
     clH+=`<div class="adm-card" style="margin-bottom:8px">
@@ -777,9 +800,10 @@ async function renderAdmin(body){
       </div>
       <div class="adm-collapse-body open" id="sec-body-${eid}">
         ${itemsHtml}
-        <div class="add-row">
-          <input type="text" id="na-${eid}" placeholder="영역" style="flex:0.8">
-          <input type="text" id="ni-${eid}" placeholder="항목명" style="flex:1.5">
+        <div class="add-row" style="flex-wrap:wrap">
+          <input type="text" id="na-${eid}" placeholder="영역" style="flex:0.7">
+          <input type="text" id="ni-${eid}" placeholder="항목명" style="flex:1.4">
+          <input type="time" id="nt-${eid}" class="time-input" title="마감시간 (미입력 시 종일)">
           <button class="btn-add" onclick="admAddItem('${sec}')">추가</button>
         </div>
       </div>
@@ -933,12 +957,16 @@ async function admSaveEdit(sec,idx){
   const eid=sec.replace(/[^\w가-힣]/g,'_');
   const a=(document.getElementById('edit-area-'+eid+'-'+idx).value||'').trim();
   const n=(document.getElementById('edit-name-'+eid+'-'+idx).value||'').trim();
+  const t=(document.getElementById('edit-time-'+eid+'-'+idx)||{}).value||'';
   if(!n)return showToast('항목명을 입력해주세요');
-  const ok=await showConfirm('항목 수정','"'+n+'"\n으로 수정하시겠습니까?','primary','✏️');
+  const timeLabel=t?(' / 마감 '+t):'';
+  const ok=await showConfirm('항목 수정','"'+n+'"'+timeLabel+'\n으로 수정하시겠습니까?','primary','✏️');
   if(!ok)return;
   showOverlay('저장 중...');
   const cfg=await getConfig(adminStore);
-  cfg.checklist[sec][idx]={a:a||'기타',n};
+  const updItem={a:a||'기타',n};
+  if(t)updItem.t=t; else delete updItem.t;
+  cfg.checklist[sec][idx]=updItem;
   await setConfig(adminStore,cfg);
   hideOverlay();showToast('수정 완료');renderHomeBody();
 }
@@ -955,10 +983,13 @@ async function admAddItem(sec){
   const eid=sec.replace(/[^\w가-힣]/g,'_');
   const a=(document.getElementById('na-'+eid).value||'').trim();
   const n=(document.getElementById('ni-'+eid).value||'').trim();
+  const t=(document.getElementById('nt-'+eid)||{}).value||'';
   if(!n)return showToast('항목명을 입력해주세요');
   showOverlay('저장 중...');
   const cfg=await getConfig(adminStore);
-  cfg.checklist[sec].push({a:a||'기타',n});
+  const newItem={a:a||'기타',n};
+  if(t)newItem.t=t; // 마감시간 있을 때만 저장
+  cfg.checklist[sec].push(newItem);
   await setConfig(adminStore,cfg);hideOverlay();showToast('추가 완료');renderHomeBody();
 }
 
@@ -1101,6 +1132,9 @@ async function showApp(){
   document.getElementById('btn-back').style.display=(curUser==='admin')?'block':'none';
   document.getElementById('cur-date').value=todayStr();
   curTab=0;
+  checklistSort='default';
+  const sbInit=document.getElementById('sort-bar');
+  if(sbInit) sbInit.style.display='flex'; // 체크시트가 기본 탭
   // 마감보고 탭: 관리자+마스터만 표시
   const tbClosing=document.getElementById('tb-closing');
   if(tbClosing) tbClosing.style.display=isManager()?'':'none';
@@ -1110,7 +1144,12 @@ async function showApp(){
 }
 function goBack(){fbUnlisten(curListener);curListener=null;showHome();}
 async function onDateChange(){await renderCurrentTab();await updateProgress();}
-async function switchTab(n){curTab=n;updateTabBar();await renderCurrentTab();
+async function switchTab(n){
+  curTab=n;updateTabBar();
+  // 정렬바: 체크시트 탭에서만 표시
+  const sb=document.getElementById('sort-bar');
+  if(sb) sb.style.display=(n===0)?'flex':'none';
+  await renderCurrentTab();
   const data=await getData(curStore.code,curDate());updateSubmitBar(data);
 }
 function updateTabBar(){document.querySelectorAll('.tb').forEach((b,i)=>b.classList.toggle('active',i===curTab));}
@@ -1123,45 +1162,137 @@ async function renderCurrentTab(){
 }
 
 // ── CHECKLIST ──
+// 현재 시각 HH:MM 반환
+function nowHHMM(){
+  const n=new Date();
+  return n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+}
+// 마감시간 상태 반환
+function deadlineStatus(deadline){
+  if(!deadline)return 'none';
+  const now=nowHHMM();
+  const diff=(parseInt(deadline.replace(':',''))-parseInt(now.replace(':',''))); // 분 차이 근사
+  if(diff<0)return 'over';      // 마감 지남
+  if(diff<=60)return 'warn';    // 1시간 이내
+  return 'ok';
+}
+function deadlineBadge(deadline){
+  if(!deadline)return '';
+  const st=deadlineStatus(deadline);
+  const label={'ok':'⏰ '+deadline+'까지','warn':'⚠️ '+deadline+'까지 (임박)','over':'🔴 '+deadline+' 마감'}[st];
+  return `<span class="deadline-badge ${st}">${label}</span>`;
+}
+
+function setSort(mode){
+  checklistSort=mode;
+  ['default','asc','desc','undone'].forEach(m=>{
+    const el=document.getElementById('sort-'+m);
+    if(el)el.classList.toggle('active',m===mode);
+  });
+  renderChecklist();
+}
+
 async function renderChecklist(){
   showOverlay('체크리스트 불러오는 중...');
   const cfg=await getConfig(curStore.code);
   const data=await getData(curStore.code,curDate());
   const staffList=await getStaff(curStore.code);
   hideOverlay();
-  let html='';
+
+  // 전체 항목을 flat 배열로 만들어 정렬에 활용
+  let allItems=[]; // {sec, item, i, k, st, sf}
   for(const[sec,items]of Object.entries(cfg.checklist)){
-    const done=items.filter((_,i)=>['done','na'].includes((data.checks||{})[sec+':'+i])).length;
-    html+=`<div class="sec-card">
+    items.forEach((item,i)=>{
+      const k=sec+':'+i;
+      const st=(data.checks||{})[k]||'';
+      const sf=(data.checks||{})[k+'_staff']||'';
+      allItems.push({sec,item,i,k,st,sf});
+    });
+  }
+
+  const now=nowHHMM();
+  let html='';
+
+  if(checklistSort==='default'){
+    // 기존 분류별 표시
+    for(const[sec,items]of Object.entries(cfg.checklist)){
+      const done=items.filter((_,i)=>['done','na'].includes((data.checks||{})[sec+':'+i])).length;
+      html+=`<div class="sec-card">
+        <div class="sec-hdr" onclick="toggleSec(this)">
+          <span class="sec-title">${sec}</span>
+          <span class="sec-cnt">${done}/${items.length}</span>
+          <span class="sec-arr open">▼</span>
+        </div>
+        <div class="sec-body open">
+          ${items.map((item,i)=>buildCheckItem(sec,item,i,data,staffList,now)).join('')}
+        </div>
+      </div>`;
+    }
+  } else {
+    // 정렬 모드: flat 리스트
+    let sorted=[...allItems];
+    if(checklistSort==='asc'){
+      sorted.sort((a,b)=>{
+        const ta=a.item.t||'99:99', tb=b.item.t||'99:99';
+        return ta.localeCompare(tb);
+      });
+    } else if(checklistSort==='desc'){
+      sorted.sort((a,b)=>{
+        const ta=a.item.t||'00:00', tb=b.item.t||'00:00';
+        return tb.localeCompare(ta);
+      });
+    } else if(checklistSort==='undone'){
+      sorted.sort((a,b)=>{
+        const doneA=['done','na'].includes(a.st)?1:0;
+        const doneB=['done','na'].includes(b.st)?1:0;
+        if(doneA!==doneB)return doneA-doneB;
+        const ta=a.item.t||'99:99', tb=b.item.t||'99:99';
+        return ta.localeCompare(tb);
+      });
+    }
+    const done=sorted.filter(x=>['done','na'].includes(x.st)).length;
+    html=`<div class="sec-card">
       <div class="sec-hdr" onclick="toggleSec(this)">
-        <span class="sec-title">${sec}</span>
-        <span class="sec-cnt">${done}/${items.length}</span>
+        <span class="sec-title">전체 항목</span>
+        <span class="sec-cnt">${done}/${sorted.length}</span>
         <span class="sec-arr open">▼</span>
       </div>
       <div class="sec-body open">
-        ${items.map((item,i)=>{
-          const k=sec+':'+i;
-          const st=(data.checks||{})[k]||'';
-          const sf=(data.checks||{})[k+'_staff']||'';
-          const opts='<option value="">직원선택</option>'+staffList.map(n=>`<option${n===sf?' selected':''}>${n}</option>`).join('');
-          return `<div class="ci">
-            <div class="ci-num">${i+1}</div>
-            <div class="ci-info"><div class="ci-area">${item.a}</div><div class="ci-name">${item.n}</div></div>
-            <div class="ci-controls">
-              <div class="status-btns">
-                <button class="sbtn${st==='done'?' done':''}" onclick="setSt('${k}','done')">✓</button>
-                <button class="sbtn${st==='fail'?' fail':''}" onclick="setSt('${k}','fail')">✗</button>
-                <button class="sbtn${st==='na'?' na':''}" onclick="setSt('${k}','na')">-</button>
-              </div>
-              <select class="staff-sel" onchange="setStaffF('${k}',this.value)">${opts}</select>
-            </div>
-          </div>`;
-        }).join('')}
+        ${sorted.map(({sec,item,i})=>buildCheckItem(sec,item,i,data,staffList,now)).join('')}
       </div>
     </div>`;
   }
+
   document.getElementById('app-content').innerHTML=html;
   updateSubmitBar(data);
+}
+
+function buildCheckItem(sec,item,i,data,staffList,now){
+  const k=sec+':'+i;
+  const st=(data.checks||{})[k]||'';
+  const sf=(data.checks||{})[k+'_staff']||'';
+  const opts='<option value="">직원선택</option>'+staffList.map(n=>`<option${n===sf?' selected':''}>${n}</option>`).join('');
+  // 마감시간 체크
+  const deadline=item.t||'';
+  const expired=deadline&&now>deadline&&!['done','na'].includes(st);
+  const disabledAttr=expired?'disabled title="마감시간이 지났습니다"':'';
+  const dBadge=deadlineBadge(deadline);
+  return `<div class="ci${expired?' expired':''}">
+    <div class="ci-num">${i+1}</div>
+    <div class="ci-info">
+      <div class="ci-area">${sec} · ${item.a}</div>
+      <div class="ci-name">${item.n}</div>
+      ${dBadge}
+    </div>
+    <div class="ci-controls">
+      <div class="status-btns">
+        <button class="sbtn${st==='done'?' done':''}" onclick="setSt('${k}','done')" ${expired&&st!=='done'?disabledAttr:''}>✓</button>
+        <button class="sbtn${st==='fail'?' fail':''}" onclick="setSt('${k}','fail')" ${expired&&st!=='fail'?disabledAttr:''}>✗</button>
+        <button class="sbtn${st==='na'?' na':''}" onclick="setSt('${k}','na')" ${disabledAttr}>-</button>
+      </div>
+      <select class="staff-sel" onchange="setStaffF('${k}',this.value)" ${expired?'disabled':''}>${opts}</select>
+    </div>
+  </div>`;
 }
 
 async function setSt(key,val){
@@ -2025,6 +2156,7 @@ window.onTouchStart=onTouchStart;window.onTouchMove=onTouchMove;window.onTouchEn
 window.loadReport=loadReport;
 window.goBack=goBack;window.onDateChange=onDateChange;window.switchTab=switchTab;
 window.toggleSec=toggleSec;
+window.setSort=setSort;
 window.setSt=setSt;window.setStaffF=setStaffF;
 window.toggleFac=toggleFac;window.setFac=setFac;
 window.setRepair=setRepair;window.setMemo=setMemo;
