@@ -193,6 +193,16 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .adm-item-name{font-size:13px;line-height:1.4;word-break:keep-all}
 .adm-btns{display:flex;gap:3px;flex-shrink:0}
 .btn-del{background:#fff0f0;border:1px solid #fcc;color:var(--danger);border-radius:7px;padding:4px 7px;font-size:11px;cursor:pointer;font-family:inherit}
+.btn-hide{background:#f5f5f5;border:1px solid #ddd;color:#888;border-radius:7px;padding:4px 7px;font-size:11px;cursor:pointer;font-family:inherit}
+.btn-show{background:#fff8e1;border:1px solid #ffd54f;color:#f57f17;border-radius:7px;padding:4px 7px;font-size:11px;cursor:pointer;font-family:inherit}
+@media(prefers-color-scheme:dark){
+  .btn-hide{background:#2a2a2a;border-color:#444;color:#888}
+  .btn-show{background:#2a2200;border-color:#7a5c00;color:#ffc107}
+}
+.adm-item.hidden-item{opacity:0.45;background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(0,0,0,0.03) 6px,rgba(0,0,0,0.03) 12px)}
+.hidden-badge{font-size:10px;padding:1px 6px;border-radius:10px;background:#f5f5f5;color:#888;border:1px solid #ddd;margin-left:5px;vertical-align:middle}
+.hidden-section{margin-bottom:10px}
+.hidden-toggle-btn{width:100%;padding:9px 14px;background:var(--card);border:1px solid var(--border);border-radius:12px;font-size:12px;color:var(--text2);cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:6px}
 .btn-edit-item{background:#eef4ff;border:1px solid #c0d4f8;color:var(--accent2);border-radius:7px;padding:4px 7px;font-size:11px;cursor:pointer;font-family:inherit}
 @media(prefers-color-scheme:dark){
   .btn-del{background:#3a1515;border-color:#5a2020}
@@ -241,7 +251,7 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .achieve-bar{height:100%;border-radius:10px;transition:width .4s}
 .photo-upload-area{border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;color:var(--text2);font-size:13px;margin-bottom:8px;transition:border-color .2s}
 .photo-upload-area:hover{border-color:var(--accent2)}
-.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.photo-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px}
 .photo-thumb{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1}
 .photo-thumb img{width:100%;height:100%;object-fit:cover}
 .photo-thumb-del{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -750,7 +760,7 @@ async function renderAdmin(body){
   for(const[sec,items]of Object.entries(cfg.checklist)){
     const eid=sec.replace(/[^\w가-힣]/g,'_');
     const itemsHtml=items.map((it,i)=>`
-      <div class="adm-item"
+      <div class="adm-item${it.hidden?' hidden-item':''}" 
         draggable="true"
         data-sec="${sec}" data-idx="${i}"
         ondragstart="onDragStart(event,'${sec}',${i})"
@@ -764,11 +774,12 @@ async function renderAdmin(body){
         <span class="drag-handle" title="길게 눌러 순서 변경">⠿</span>
         <div class="adm-item-info">
           <div class="adm-item-area">${it.a}</div>
-          <div class="adm-item-name">${it.n}${it.t?`<span class="deadline-badge ok" style="margin-left:6px">⏰ ${it.t}</span>`:''}</div>
+          <div class="adm-item-name">${it.n}${it.t?`<span class="deadline-badge ok" style="margin-left:6px">⏰ ${it.t}</span>`:''}${it.hidden?'<span class="hidden-badge">숨김</span>':''}</div>
           ${it.d?`<div style="font-size:10px;color:var(--text2);margin-top:1px">📌 ${it.d}</div>`:''}
         </div>
         <div class="adm-btns">
           <button class="btn-edit-item" onclick="showEditRow('${sec}',${i})">수정</button>
+          <button class="${it.hidden?'btn-show':'btn-hide'}" onclick="admToggleHide('${sec}',${i})">${it.hidden?'표시':'숨김'}</button>
           <button class="btn-del" onclick="admDelItem('${sec}',${i})">삭제</button>
         </div>
       </div>
@@ -814,7 +825,29 @@ async function renderAdmin(body){
       </div>
     </div>`;
   }
-  body.innerHTML=sel+clH+'</div>';
+  // 숨김 항목 모아보기
+  let hiddenItems=[];
+  for(const[sec,items]of Object.entries(cfg.checklist)){
+    items.forEach((it,i)=>{ if(it.hidden)hiddenItems.push({sec,it,i}); });
+  }
+  const hiddenSection=hiddenItems.length?`
+    <div class="hidden-section">
+      <div class="adm-sec-title" style="color:var(--text2)">🙈 숨김 처리된 항목 (${hiddenItems.length}개)</div>
+      <div class="adm-card">
+        ${hiddenItems.map(({sec,it,i})=>`
+        <div class="adm-item hidden-item">
+          <div class="adm-item-info">
+            <div class="adm-item-area">${sec} · ${it.a}</div>
+            <div class="adm-item-name">${it.n}<span class="hidden-badge">숨김</span></div>
+          </div>
+          <div class="adm-btns">
+            <button class="btn-show" onclick="admToggleHide('${sec}',${i})">표시</button>
+            <button class="btn-del" onclick="admDelItem('${sec}',${i})">삭제</button>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`:'';
+  body.innerHTML=sel+clH+'</div>'+hiddenSection;
 }
 
 // ── 펼치기/접기 ──
@@ -977,6 +1010,27 @@ async function admSaveEdit(sec,idx){
   await setConfig(adminStore,cfg);
   hideOverlay();showToast('수정 완료');renderHomeBody();
 }
+async function admToggleHide(sec,idx){
+  const cfg=await getConfig(adminStore);
+  const item=cfg.checklist[sec]&&cfg.checklist[sec][idx];
+  if(!item)return;
+  const isHidden=item.hidden||false;
+  const action=isHidden?'표시':'숨김';
+  const ok=await showConfirm(
+    '항목 '+action,
+    '"'+item.n+'"\n항목을 '+action+' 처리하시겠습니까?'+(isHidden?'\n\n체크시트에 다시 표시됩니다.':'\n\n체크시트에서 임시로 숨겨집니다.\n언제든지 다시 표시할 수 있습니다.'),
+    isHidden?'primary':'primary',
+    isHidden?'👁️':'🙈'
+  );
+  if(!ok)return;
+  showOverlay('저장 중...');
+  cfg.checklist[sec][idx].hidden=!isHidden;
+  await setConfig(adminStore,cfg);
+  hideOverlay();
+  showToast('"'+item.n+'" '+action+' 처리됐습니다');
+  renderHomeBody();
+}
+
 async function admDelItem(sec,idx){
   const cfg=await getConfig(adminStore);
   const itemName=cfg.checklist[sec]&&cfg.checklist[sec][idx]?cfg.checklist[sec][idx].n:'이 항목';
@@ -1229,7 +1283,7 @@ async function renderChecklist(){
       html+=`<div class="sec-card">
         <div class="sec-hdr" onclick="toggleSec(this)">
           <span class="sec-title">${sec}</span>
-          <span class="sec-cnt">${done}/${items.length}</span>
+          <span class="sec-cnt">${done}/${items.filter(it=>!it.hidden).length}</span>
           <span class="sec-arr open">▼</span>
         </div>
         <div class="sec-body open">
@@ -1277,6 +1331,7 @@ async function renderChecklist(){
 }
 
 function buildCheckItem(sec,item,i,data,staffList,now){
+  if(item.hidden)return ''; // 숨김 항목 체크시트에서 미표시
   const k=sec+':'+i;
   const st=(data.checks||{})[k]||'';
   const sf=(data.checks||{})[k+'_staff']||'';
@@ -1525,6 +1580,9 @@ async function renderClosing(){
         </select>`
       :'<span style="font-size:12px;color:var(--text2)">간부 지정 후 선택 가능 (직원 관리 탭)</span>';
   }
+  // 제출 버튼 상태 업데이트
+  const dayData=await getData(curStore.code,curDate());
+  await updateSubmitBar(dayData);
 }
 
 function calcAchieve(){
@@ -1532,16 +1590,43 @@ function calcAchieve(){
 }
 
 let fbPhotos=[];
+// 이미지 압축 (최대 800px, quality 0.65)
+function compressImage(file, maxPx=800, quality=0.65){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      let w=img.width, h=img.height;
+      if(w>maxPx||h>maxPx){
+        if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}
+        else{w=Math.round(w*maxPx/h);h=maxPx;}
+      }
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      res(canvas.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=rej;
+    img.src=url;
+  });
+}
+
 async function addClosingPhotos(inp){
+  if(!inp.files.length)return;
   setSyncB('saving','저장 중...');
+  showOverlay('사진 처리 중...');
   const cl=await getClosing(curStore.code,curDate());
   if(!cl.photos)cl.photos=[];
   for(const file of inp.files){
-    if(cl.photos.length>=6){showToast('사진은 최대 6장');break;}
-    const b64=await fileToBase64(file);
-    cl.photos.push(b64);
+    if(cl.photos.length>=10){showToast('사진은 최대 10장까지 가능합니다');break;}
+    try{
+      const compressed=await compressImage(file);
+      cl.photos.push(compressed);
+    }catch(e){showToast('사진 처리 오류: '+file.name);}
   }
   await setClosing(curStore.code,curDate(),cl);
+  hideOverlay();
   setSyncB('saved','저장됨 ✓');
   await renderClosing();
 }
@@ -1639,26 +1724,33 @@ async function updateProgress(){
   document.getElementById('prog-pill').textContent=rate+'%';
   updateSubmitBar(data);
 }
-function updateSubmitBar(data){
+async function updateSubmitBar(data){
   const key=tabSubmitKey();
   const btnSubmit=document.getElementById('btn-submit');
   const btnUnlock=document.getElementById('btn-unlock');
   if(!btnSubmit)return;
-  // 메모 탭은 제출 없음
   if(key===null){
     btnSubmit.style.display='none';
     btnUnlock.style.display='none';
     return;
   }
   btnSubmit.style.display='';
-  if(data[key]){
-    // 제출된 상태
+
+  // 마감보고는 closing 데이터에서 제출 상태 확인
+  let isSubmitted=false;
+  if(curTab===3){
+    const cl=await getClosing(curStore.code,curDate());
+    isSubmitted=!!(cl&&cl.submitted);
+  } else {
+    isSubmitted=!!(data&&data[key]);
+  }
+
+  if(isSubmitted){
     btnSubmit.textContent='✓ '+tabLabel()+' 제출완료';
     btnSubmit.style.background='#1D9E75';
     btnSubmit.disabled=true;
     btnUnlock.style.display='';
   } else {
-    // 미제출 상태
     btnSubmit.textContent='✅ '+tabLabel()+' 제출';
     btnSubmit.style.background='';
     btnSubmit.disabled=false;
@@ -1675,6 +1767,29 @@ async function saveNow(){
 async function submitCurrent(){
   const key=tabSubmitKey();
   if(!key)return;
+
+  // 마감보고 탭(tab3)은 별도 처리
+  if(curTab===3){
+    await saveClosingData(); // 먼저 현재 입력값 저장
+    const cl=await getClosing(curStore.code,curDate());
+    if(cl.submitted){showToast('이미 제출되었습니다. 수정 버튼을 눌러주세요');return;}
+    if(!confirm(`${curDate()} [마감보고]를 제출하시겠습니까?\n제출 후 수정 버튼으로 다시 수정 가능합니다.`))return;
+    showOverlay('제출 중...');
+    cl.submitted=true;
+    cl.submittedAt=new Date().toISOString();
+    await setClosing(curStore.code,curDate(),cl);
+    // dayData에도 플래그 저장 (이행률 보고용)
+    const data=await getData(curStore.code,curDate());
+    data.submittedClosing=true;
+    data.submittedClosingAt=new Date().toISOString();
+    await setData(curStore.code,curDate(),data);
+    hideOverlay();
+    showToast('[마감보고] 제출 완료!');
+    updateSubmitBar(data);
+    await renderClosing();
+    return;
+  }
+
   const data=await getData(curStore.code,curDate());
   if(data[key]){showToast('이미 제출되었습니다. 수정 버튼을 눌러주세요');return;}
   const label=tabLabel();
@@ -1682,7 +1797,6 @@ async function submitCurrent(){
   showOverlay('제출 중...');
   data[key]=true;
   data[key+'At']=new Date().toISOString();
-  // 3개 모두 제출됐으면 전체 제출 완료 표시
   if(data.submittedCheck&&data.submittedFac&&data.submittedRepair){
     data.submitted=true;data.submittedAt=new Date().toISOString();
   }
@@ -1697,10 +1811,27 @@ async function unlockCurrent(){
   const label=tabLabel();
   if(!confirm(`[${label}] 제출을 취소하고 수정하시겠습니까?`))return;
   showOverlay('수정 모드로 전환 중...');
+
+  // 마감보고는 closing 데이터에서도 해제
+  if(curTab===3){
+    const cl=await getClosing(curStore.code,curDate());
+    cl.submitted=false;
+    delete cl.submittedAt;
+    await setClosing(curStore.code,curDate(),cl);
+    const data=await getData(curStore.code,curDate());
+    data.submittedClosing=false;
+    delete data.submittedClosingAt;
+    await setData(curStore.code,curDate(),data);
+    hideOverlay();
+    showToast('[마감보고] 수정 가능 상태로 변경됐습니다');
+    updateSubmitBar(data);
+    await renderClosing();
+    return;
+  }
+
   const data=await getData(curStore.code,curDate());
   data[key]=false;
   delete data[key+'At'];
-  // 전체 제출 상태도 해제
   data.submitted=false;
   delete data.submittedAt;
   await setData(curStore.code,curDate(),data);
@@ -2153,6 +2284,7 @@ window.doLogin=doLogin;window.doLogout=doLogout;
 window.switchHTab=switchHTab;window.enterStore=enterStore;
 window.admDelStaff=admDelStaff;window.admAddStaff=admAddStaff;window.admEditStaff=admEditStaff;window.renderStaffAll=renderStaffAll;
 window.admDelItem=admDelItem;window.admAddItem=admAddItem;window.admSaveEdit=admSaveEdit;
+window.admToggleHide=admToggleHide;
 window.renderStoresManage=renderStoresManage;
 window.admAddStore=admAddStore;window.admSaveStore=admSaveStore;window.admDelStore=admDelStore;
 window.showStoreEditRow=showStoreEditRow;window.hideStoreEditRow=hideStoreEditRow;
