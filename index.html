@@ -130,6 +130,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .ci-info{flex:1}
 .ci-area{font-size:10px;color:var(--text2);margin-bottom:1px}
 .ci-name{font-size:13px;line-height:1.4}
+.ci-desc{font-size:11px;color:var(--text2);margin-top:2px;line-height:1.5;word-break:keep-all}
+.ci-desc-toggle{font-size:10px;color:var(--accent2);cursor:pointer;text-decoration:underline;margin-top:2px;display:inline-block}
 .ci-controls{display:flex;flex-direction:column;gap:5px;align-items:flex-end;min-width:94px}
 .status-btns{display:flex;gap:3px}
 .sbtn{border:1px solid var(--border);background:var(--inp-bg);border-radius:7px;padding:5px 7px;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit;color:var(--text2)}
@@ -763,6 +765,7 @@ async function renderAdmin(body){
         <div class="adm-item-info">
           <div class="adm-item-area">${it.a}</div>
           <div class="adm-item-name">${it.n}${it.t?`<span class="deadline-badge ok" style="margin-left:6px">⏰ ${it.t}</span>`:''}</div>
+          ${it.d?`<div style="font-size:10px;color:var(--text2);margin-top:1px">📌 ${it.d}</div>`:''}
         </div>
         <div class="adm-btns">
           <button class="btn-edit-item" onclick="showEditRow('${sec}',${i})">수정</button>
@@ -770,8 +773,9 @@ async function renderAdmin(body){
         </div>
       </div>
       <div class="edit-inline-row" id="edit-row-${eid}-${i}" style="display:none;flex-wrap:wrap">
-        <input type="text" id="edit-area-${eid}-${i}" placeholder="영역" value="${it.a}" style="flex:0.7">
-        <input type="text" id="edit-name-${eid}-${i}" placeholder="항목명" value="${it.n.replace(/"/g,'&quot;')}" style="flex:1.4">
+        <input type="text" id="edit-area-${eid}-${i}" placeholder="영역" value="${it.a}" style="flex:0.7;min-width:60px">
+        <input type="text" id="edit-name-${eid}-${i}" placeholder="항목명" value="${it.n.replace(/"/g,'&quot;')}" style="flex:1.4;min-width:100px">
+        <input type="text" id="edit-desc-${eid}-${i}" placeholder="항목설명 (선택)" value="${(it.d||'').replace(/"/g,'&quot;')}" style="flex:2;min-width:140px">
         <input type="time" id="edit-time-${eid}-${i}" class="time-input" value="${it.t||''}" title="마감시간 (비워두면 종일)">
         <div style="display:flex;gap:4px;width:100%;margin-top:4px">
           <button class="btn-save-edit" style="flex:1" onclick="admSaveEdit('${sec}',${i})">저장</button>
@@ -800,9 +804,10 @@ async function renderAdmin(body){
       </div>
       <div class="adm-collapse-body open" id="sec-body-${eid}">
         ${itemsHtml}
-        <div class="add-row" style="flex-wrap:wrap">
-          <input type="text" id="na-${eid}" placeholder="영역" style="flex:0.7">
-          <input type="text" id="ni-${eid}" placeholder="항목명" style="flex:1.4">
+        <div class="add-row" style="flex-wrap:wrap;gap:5px">
+          <input type="text" id="na-${eid}" placeholder="영역" style="flex:0.7;min-width:60px">
+          <input type="text" id="ni-${eid}" placeholder="항목명" style="flex:1.4;min-width:100px">
+          <input type="text" id="nd-${eid}" placeholder="항목설명 (선택)" style="flex:2;min-width:140px">
           <input type="time" id="nt-${eid}" class="time-input" title="마감시간 (미입력 시 종일)">
           <button class="btn-add" onclick="admAddItem('${sec}')">추가</button>
         </div>
@@ -958,6 +963,7 @@ async function admSaveEdit(sec,idx){
   const a=(document.getElementById('edit-area-'+eid+'-'+idx).value||'').trim();
   const n=(document.getElementById('edit-name-'+eid+'-'+idx).value||'').trim();
   const t=(document.getElementById('edit-time-'+eid+'-'+idx)||{}).value||'';
+  const d=(document.getElementById('edit-desc-'+eid+'-'+idx)||{}).value||'';
   if(!n)return showToast('항목명을 입력해주세요');
   const timeLabel=t?(' / 마감 '+t):'';
   const ok=await showConfirm('항목 수정','"'+n+'"'+timeLabel+'\n으로 수정하시겠습니까?','primary','✏️');
@@ -966,6 +972,7 @@ async function admSaveEdit(sec,idx){
   const cfg=await getConfig(adminStore);
   const updItem={a:a||'기타',n};
   if(t)updItem.t=t; else delete updItem.t;
+  if(d.trim())updItem.d=d.trim(); else delete updItem.d;
   cfg.checklist[sec][idx]=updItem;
   await setConfig(adminStore,cfg);
   hideOverlay();showToast('수정 완료');renderHomeBody();
@@ -984,11 +991,13 @@ async function admAddItem(sec){
   const a=(document.getElementById('na-'+eid).value||'').trim();
   const n=(document.getElementById('ni-'+eid).value||'').trim();
   const t=(document.getElementById('nt-'+eid)||{}).value||'';
+  const d=(document.getElementById('nd-'+eid)||{}).value||'';
   if(!n)return showToast('항목명을 입력해주세요');
   showOverlay('저장 중...');
   const cfg=await getConfig(adminStore);
   const newItem={a:a||'기타',n};
-  if(t)newItem.t=t; // 마감시간 있을 때만 저장
+  if(t)newItem.t=t;
+  if(d.trim())newItem.d=d.trim(); // 설명 있을 때만 저장
   cfg.checklist[sec].push(newItem);
   await setConfig(adminStore,cfg);hideOverlay();showToast('추가 완료');renderHomeBody();
 }
@@ -1282,6 +1291,7 @@ function buildCheckItem(sec,item,i,data,staffList,now){
     <div class="ci-info">
       <div class="ci-area">${sec} · ${item.a}</div>
       <div class="ci-name">${item.n}</div>
+      ${item.d?`<div class="ci-desc">📌 ${item.d}</div>`:''}
       ${dBadge}
     </div>
     <div class="ci-controls">
