@@ -430,8 +430,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
     <div class="confirm-title" id="confirm-title">확인</div>
     <div class="confirm-msg" id="confirm-msg"></div>
     <div class="confirm-btns">
-      <button class="confirm-btn-cancel" onclick="confirmResolve(false)">취소</button>
-      <button class="confirm-btn-ok danger" id="confirm-ok" onclick="confirmResolve(true)">확인</button>
+      <button class="confirm-btn-cancel" onclick="window.confirmResolve(false)">취소</button>
+      <button class="confirm-btn-ok danger" id="confirm-ok" onclick="window.confirmResolve(true)">확인</button>
     </div>
   </div>
 </div>
@@ -2371,10 +2371,10 @@ async function admDelStore(idx){
 }
 
 // ── 커스텀 확인 모달 ──
-let confirmResolve = null;
+let _confirmResolveFn = null;
 function showConfirm(title, msg, type='danger', icon='⚠️'){
   return new Promise(resolve=>{
-    confirmResolve = resolve;
+    _confirmResolveFn = resolve;
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-msg').textContent = msg;
     document.getElementById('confirm-icon').textContent = icon;
@@ -2386,7 +2386,7 @@ function showConfirm(title, msg, type='danger', icon='⚠️'){
 }
 window.confirmResolve = function(result){
   document.getElementById('confirm-overlay').style.display = 'none';
-  if(confirmResolve){ confirmResolve(result); confirmResolve=null; }
+  if(_confirmResolveFn){ _confirmResolveFn(result); _confirmResolveFn=null; }
 };
 
 // ── 대분류(섹션) 관리 ──
