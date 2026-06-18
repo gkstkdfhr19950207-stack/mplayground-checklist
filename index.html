@@ -237,6 +237,20 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .sum-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
 .sum-val{font-size:24px;font-weight:700;margin-bottom:2px}
 .sum-lbl{font-size:11px;color:var(--text2)}
+.stores-filter{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.stores-filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.stores-filter label{font-size:12px;color:var(--text2);white-space:nowrap}
+.stores-filter input[type=date]{border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none;flex:1;min-width:130px}
+.stores-filter select{border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit;background:var(--inp-bg);color:var(--text);outline:none;flex:1;min-width:100px}
+.stores-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stores-sum-card{background:var(--card);border-radius:12px;padding:12px 14px;border:1px solid var(--border);box-shadow:var(--shadow);text-align:center}
+.stores-sum-val{font-size:22px;font-weight:700;margin-bottom:2px}
+.stores-sum-lbl{font-size:11px;color:var(--text2)}
+.store-tile.has-data{border-color:var(--ok);border-width:1.5px}
+.store-tile.submitted-tile{border-color:var(--ok);background:linear-gradient(135deg,var(--card),#f0faf5)}
+@media(prefers-color-scheme:dark){.store-tile.submitted-tile{background:linear-gradient(135deg,var(--card),#0d2318)}}
+.tile-progress{height:3px;background:var(--border);border-radius:10px;margin-top:6px;overflow:hidden}
+.tile-progress-bar{height:100%;border-radius:10px;transition:width .4s}
 .empty-msg{text-align:center;padding:30px 0;color:var(--text2);font-size:13px}
 /* 마감보고 */
 .closing-section{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow);border:1px solid var(--border)}
@@ -742,21 +756,88 @@ async function renderHomeBody(){
 
 async function renderStores(body){
   const today=todayStr();
-  let html=`<div style="font-size:12px;color:var(--text2);margin-bottom:10px">오늘(${today}) 매장 현황 · 실시간</div><div class="store-grid">`;
-  for(const s of STORES){
-    const data=await getData(s.code,today);
+  body.innerHTML=`
+    <div class="stores-filter">
+      <div class="stores-filter-row">
+        <label>📅 날짜</label>
+        <input type="date" id="stores-date" value="${today}" onchange="loadStoresByDate()">
+        <select id="stores-type-filter" onchange="loadStoresByDate()">
+          <option value="all">전체 유형</option>
+          <option value="직영점">직영점</option>
+          <option value="백화점">백화점</option>
+          <option value="아울렛">아울렛</option>
+        </select>
+      </div>
+    </div>
+    <div class="stores-summary" id="stores-summary"></div>
+    <div id="stores-grid-wrap"></div>`;
+  await loadStoresByDate();
+}
+
+async function loadStoresByDate(){
+  const dateEl=document.getElementById('stores-date');
+  const typeEl=document.getElementById('stores-type-filter');
+  if(!dateEl)return;
+  const date=dateEl.value||todayStr();
+  const typeFilter=typeEl?typeEl.value:'all';
+  const summaryEl=document.getElementById('stores-summary');
+  const gridEl=document.getElementById('stores-grid-wrap');
+  if(summaryEl)summaryEl.innerHTML='<div class="stores-sum-card"><div class="stores-sum-val" style="font-size:14px;color:var(--text2)">불러오는 중...</div></div>';
+  if(gridEl)gridEl.innerHTML='';
+
+  const targets=typeFilter==='all'?STORES:STORES.filter(s=>s.type===typeFilter);
+  let totalRate=0, submittedCnt=0, activeCnt=0;
+  let gridHtml='<div class="store-grid">';
+
+  for(const s of targets){
+    const data=await getData(s.code,date);
     const cfg=await getConfig(s.code);
     const rate=calcRate(cfg,data);
-    html+=`<div class="store-tile" onclick="enterStore('${s.code}')">
+    const hasAny=!!(data.submittedCheck||data.submittedFac||data.submittedRepair||data.submitted||rate>0);
+    totalRate+=rate;
+    if(data.submitted)submittedCnt++;
+    if(rate>0)activeCnt++;
+    const barColor=rate>=80?'#1D9E75':rate>=50?'#BA7517':'#A32D2D';
+    const tileClass='store-tile'+(data.submitted?' submitted-tile':hasAny?' has-data':'');
+    const subLabel=data.submitted
+      ?'<div class="tile-sub">✓전체제출</div>'
+      :(data.submittedCheck||data.submittedFac||data.submittedRepair)
+        ?'<div class="tile-sub" style="color:var(--warn)">일부제출</div>'
+        :rate>0?'<div class="tile-sub" style="color:var(--accent2)">진행중</div>':'';
+    gridHtml+=`<div class="${tileClass}" onclick="enterStore('${s.code}')">
       <div class="tile-type">${s.type}</div>
       <div class="tile-name">${s.name}</div>
       <div class="tile-code">${s.code}</div>
-      <div class="tile-rate">${rate}%</div>
-      ${data.submitted?'<div class="tile-sub">✓전체제출</div>':(data.submittedCheck||data.submittedFac||data.submittedRepair)?'<div class="tile-sub" style="color:var(--warn)">일부제출</div>':''}
+      <div class="tile-rate" style="color:${rate>0?barColor:'var(--text2)'}">${rate}%</div>
+      ${subLabel}
+      <div class="tile-progress"><div class="tile-progress-bar" style="width:${rate}%;background:${barColor}"></div></div>
     </div>`;
   }
-  body.innerHTML=html+'</div>';
+  gridHtml+='</div>';
+
+  const avgRate=targets.length?Math.round(totalRate/targets.length):0;
+  const isToday=date===todayStr();
+  if(summaryEl){
+    summaryEl.innerHTML=`
+      <div class="stores-sum-card">
+        <div class="stores-sum-val" style="color:var(--accent)">${avgRate}%</div>
+        <div class="stores-sum-lbl">평균 이행률</div>
+      </div>
+      <div class="stores-sum-card">
+        <div class="stores-sum-val" style="color:var(--ok)">${submittedCnt}<span style="font-size:14px;color:var(--text2)">/${targets.length}</span></div>
+        <div class="stores-sum-lbl">전체제출 매장</div>
+      </div>
+      <div class="stores-sum-card">
+        <div class="stores-sum-val" style="color:var(--accent2)">${activeCnt}<span style="font-size:14px;color:var(--text2)">/${targets.length}</span></div>
+        <div class="stores-sum-lbl">진행중 매장</div>
+      </div>`;
+  }
+  if(gridEl)gridEl.innerHTML=`
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+      ${date} ${isToday?'· 실시간':'· 과거 내역'} · ${targets.length}개 매장
+    </div>`+gridHtml;
 }
+window.loadStoresByDate=loadStoresByDate;
 
 function enterStore(code){
   curStore=STORES.find(s=>s.code===code);
@@ -2597,17 +2678,19 @@ async function uploadTargetExcel(inp){
 
 // ── 마감보고 현황 (admin 조회) ──
 async function renderClosingReport(body){
-  body.innerHTML=`<div class="rpt-filter">
-    <div class="rpt-filter-row">
-      <label>날짜</label>
-      <input type="date" id="cr-date" value="${todayStr()}" onchange="loadClosingReport()">
-      <select id="cr-store" onchange="loadClosingReport()">
-        <option value="all">전체 매장</option>
-        ${STORES.map(s=>`<option value="${s.code}">${s.name}</option>`).join('')}
-      </select>
+  body.innerHTML=`
+    <div class="stores-filter">
+      <div class="stores-filter-row">
+        <label>📅 날짜</label>
+        <input type="date" id="cr-date" value="${todayStr()}" onchange="loadClosingReport()">
+        <select id="cr-store" onchange="loadClosingReport()">
+          <option value="all">전체 매장</option>
+          ${STORES.map(s=>`<option value="${s.code}">${s.name}</option>`).join('')}
+        </select>
+      </div>
     </div>
-  </div>
-  <div id="cr-body"><div class="empty-msg">불러오는 중...</div></div>`;
+    <div class="stores-summary" id="cr-summary"></div>
+    <div id="cr-body"><div class="empty-msg">불러오는 중...</div></div>`;
   await loadClosingReport();
 }
 async function loadClosingReport(){
@@ -2617,10 +2700,13 @@ async function loadClosingReport(){
   const date=dateEl.value;
   const sf=stEl.value;
   const body=document.getElementById('cr-body');
+  const summaryEl=document.getElementById('cr-summary');
   if(!date){body.innerHTML='<div class="empty-msg">날짜를 선택해주세요</div>';return;}
   body.innerHTML='<div class="empty-msg">불러오는 중...</div>';
   const targets=sf==='all'?STORES:STORES.filter(s=>s.code===sf);
+  let submittedCnt=0, reportedCnt=0, totalSales=0;
   let html='';
+
   for(const s of targets){
     const cl=await getClosing(s.code,date);
     const fb=await getFeedback(s.code,date);
@@ -2629,43 +2715,70 @@ async function loadClosingReport(){
     const targetVal=target?parseInt(target):0;
     const achievePct=targetVal>0?Math.min(Math.round(salesVal/targetVal*100),999):0;
     const achieveColor=achievePct>=100?'#1D9E75':achievePct>=80?'#BA7517':'#A32D2D';
-    const submitted=cl.submitted||false;
-    const hasData=cl.sales||cl.attend||cl.special||cl.stock;
-    if(!hasData&&sf==='all')continue;
-    html+=`<div class="rpt-card" style="margin-bottom:10px">
+    const submitted=!!(cl.submitted);
+    const hasData=!!(cl.sales||cl.attend||cl.special||cl.stock||cl.photos?.length);
+    if(submitted)submittedCnt++;
+    if(hasData)reportedCnt++;
+    if(salesVal>0)totalSales+=salesVal;
+
+    // 전체보기일 때는 데이터 없는 매장도 미보고로 표시
+    const cardBorder=submitted?'border-color:var(--ok)':hasData?'border-color:var(--warn)':'';
+    const statusBadge=submitted
+      ?'<span class="badge badge-ok">✓ 제출완료</span>'
+      :hasData
+        ?'<span class="badge badge-warn">작성중</span>'
+        :'<span class="badge badge-no">미보고</span>';
+
+    html+=`<div class="rpt-card" style="margin-bottom:10px;${cardBorder}">
       <div class="rpt-card-top">
         <div>
           <div class="rpt-store">${s.name}</div>
-          <div style="font-size:11px;color:var(--text2)">${s.code} · ${cl.reporter||'보고자 미선택'}</div>
+          <div style="font-size:11px;color:var(--text2)">${s.code} · ${s.type}${cl.reporter?' · 보고자: '+cl.reporter:''}</div>
         </div>
-        <div style="text-align:right">
-          ${submitted?'<span class="badge badge-ok">제출완료</span>':'<span class="badge badge-no">미제출</span>'}
-        </div>
+        <div style="text-align:right">${statusBadge}</div>
       </div>
+      ${hasData?`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:8px">
         <div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px">
           <div style="color:var(--text2);margin-bottom:2px">목표매출</div>
           <div style="font-weight:600">${targetVal>0?targetVal.toLocaleString()+'원':'미설정'}</div>
         </div>
         <div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px">
-          <div style="color:var(--text2);margin-bottom:2px">금일매출 <span style="color:${achieveColor};font-weight:700">${achievePct}%</span></div>
+          <div style="color:var(--text2);margin-bottom:2px">금일매출 ${achievePct>0?`<span style="color:${achieveColor};font-weight:700">${achievePct}%</span>`:''}</div>
           <div style="font-weight:600">${salesVal>0?salesVal.toLocaleString()+'원':'미입력'}</div>
         </div>
         ${cl.attend?`<div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px;grid-column:1/-1"><div style="color:var(--text2);margin-bottom:2px">근태</div><div>${cl.attend}</div></div>`:''}
         ${cl.stock?`<div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px"><div style="color:var(--text2);margin-bottom:2px">익일입하</div><div style="font-weight:600">${cl.stock} PCS</div></div>`:''}
         ${cl.special?`<div style="background:var(--inp-bg);border-radius:6px;padding:6px 8px;grid-column:1/-1"><div style="color:var(--text2);margin-bottom:2px">특이사항</div><div>${cl.special}</div></div>`:''}
       </div>
-      ${cl.photos&&cl.photos.length?`<div class="photo-grid" style="grid-template-columns:repeat(3,1fr)">${cl.photos.map(p=>`<div class="photo-thumb"><img src="${p}"></div>`).join('')}</div>`:''}
+      ${cl.photos&&cl.photos.length?`<div class="photo-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">${cl.photos.map(p=>`<div class="photo-thumb"><img src="${p}"></div>`).join('')}</div>`:''}
       ${fb?`<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
         <div style="font-size:11px;font-weight:600;color:var(--accent2);margin-bottom:4px">💬 피드백: ${fb.writer||''}</div>
-        <div style="font-size:12px">${fb.content||''}</div>
+        <div style="font-size:12px;white-space:pre-wrap">${fb.content||''}</div>
         ${fb.photos&&fb.photos.length?`<div class="photo-grid" style="margin-top:6px;grid-template-columns:repeat(3,1fr)">${fb.photos.map(p=>`<div class="photo-thumb"><img src="${p}"></div>`).join('')}</div>`:''}
       </div>`:''}
+      `:'<div style="font-size:12px;color:var(--text2);text-align:center;padding:8px 0">마감보고 미기입</div>'}
       <button class="btn-edit-item" style="width:100%;margin-top:8px;padding:8px" onclick="enterStore('${s.code}')">매장 체크리스트 보기</button>
     </div>`;
   }
-  body.innerHTML=body.innerHTML.replace('<div class="empty-msg">불러오는 중...</div>','');
-  document.getElementById('cr-body').innerHTML=html||(sf==='all'?'<div class="empty-msg">오늘 제출된 마감보고가 없습니다</div>':'<div class="empty-msg">해당 날짜 마감보고 없음</div>');
+
+  // 요약 카드
+  if(summaryEl){
+    summaryEl.innerHTML=`
+      <div class="stores-sum-card">
+        <div class="stores-sum-val" style="color:var(--ok)">${submittedCnt}<span style="font-size:14px;color:var(--text2)">/${targets.length}</span></div>
+        <div class="stores-sum-lbl">제출 완료</div>
+      </div>
+      <div class="stores-sum-card">
+        <div class="stores-sum-val" style="color:var(--warn)">${reportedCnt}<span style="font-size:14px;color:var(--text2)">/${targets.length}</span></div>
+        <div class="stores-sum-lbl">보고 있음</div>
+      </div>
+      <div class="stores-sum-card">
+        <div class="stores-sum-val" style="color:var(--accent);font-size:16px">${totalSales>0?Math.round(totalSales/10000).toLocaleString()+'만':'미입력'}</div>
+        <div class="stores-sum-lbl">합산 매출</div>
+      </div>`;
+  }
+  body.innerHTML=html||'<div class="empty-msg">해당 날짜 마감보고 데이터가 없습니다</div>';
 }
 
 // 전역 함수 노출
